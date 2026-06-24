@@ -12,6 +12,7 @@ from agno.utils.log import log_info
 
 from agents.code_search import code_search
 from agents.web_search import web_search
+from agents.crm_note_autofix import crm_note_autofix
 from db import get_postgres_db
 
 # ---------------------------------------------------------------------------
@@ -43,10 +44,7 @@ if SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET:
 
 
 # ---------------------------------------------------------------------------
-# Lifespan — extension hook for app-level startup / teardown.
-#
-# AgentOS handles the MCP lifecycle (connect on startup, close on shutdown).
-# Keep this hook in place so you can plug in your own setup as needed.
+# Lifespan
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app):  # type: ignore[no-untyped-def]
@@ -68,10 +66,15 @@ agent_os = AgentOS(
     authorization=runtime_env == "prd",
     lifespan=lifespan,
     db=get_postgres_db(),
-    agents=[web_search, code_search],
+    agents=[
+        web_search,
+        code_search,
+        crm_note_autofix,
+    ],
     interfaces=interfaces,
     config=str(Path(__file__).parent / "config.yaml"),
 )
+
 app = agent_os.get_app()
 
 
