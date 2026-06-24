@@ -1,0 +1,65 @@
+services:
+  agentos-db:
+    image: agnohq/pgvector:18
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${DB_USER:-ai}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_DATABASE:-ai}
+
+    volumes:
+      - pgdata:/var/lib/postgresql
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${DB_USER:-ai} -d ${DB_DATABASE:-ai}
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  agentos-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    restart: unless-stopped
+
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+
+    expose:
+      - "8000"
+
+    environment:
+      RUNTIME_ENV: ${RUNTIME_ENV:-dev}
+      AGNO_DEBUG: ${AGNO_DEBUG:-False}
+      WAIT_FOR_DB: "True"
+
+      AGENTOS_URL: ${AGENTOS_URL:-http://127.0.0.1:8000}
+
+      DB_HOST: agentos-db
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-ai}
+      DB_PASS: ${DB_PASS}
+      DB_DATABASE: ${DB_DATABASE:-ai}
+      DB_DRIVER: postgresql+psycopg
+
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+
+    depends_on:
+      agentos-db:
+        condition: service_healthy
+
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+volumes:
+  pgdata:
