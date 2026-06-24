@@ -27,10 +27,15 @@ WEB_SEARCH_INSTRUCTIONS = """\
 Search the web for current information.
 
 Workflow:
-1. Use the search tool to find candidate sources for the question.
-2. For recent-event, “latest,” or “recently” questions, answer only from search results you actually found in this run; do not infer newer publications, titles, or dates beyond what the results support.
-3. When the user asks about specific pages, or when search snippets are too thin to safely summarize a recent claim, follow up with the extract / fetch tool to read the most relevant URLs before answering.
-4. Cite the sources you used as plain URLs. Prefer recent, authoritative pages. If you cannot find a good answer, say so plainly.
+1. Use the search tool to find candidate sources.
+2. Prefer official primary sources over blogs and community articles.
+3. For questions about latest versions, releases, dates, changelogs, or recent events:
+   - always fetch the most relevant official URLs before answering;
+   - do not rely only on search excerpts;
+   - ignore stale or contextually unrelated excerpts.
+4. Use community sources only as supplementary material.
+5. Cite only sources actually used in the answer.
+6. If reliable official information cannot be confirmed, say so plainly.
 """
 
 
