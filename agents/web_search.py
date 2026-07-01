@@ -12,10 +12,10 @@ from agno.tools.parallel import ParallelTools
 from app.settings import default_model
 from db import get_postgres_db
 
-# When PARALLEL_API_KEY is set, use the official parallel-web SDK —
-# the agent gets `parallel_search` and `parallel_extract` directly.
+# When PARALLEL_API_KEY is set, use the parallel-web SDK —
+# the agent gets `parallel_search` and `parallel_extract` tools directly.
 # Without a key, fall back to the keyless MCP endpoint and the agent
-# gets `web_search` and `web_fetch` instead. AgentOS handles MCP
+# gets `web_search` and `web_fetch` tools instead. AgentOS handles MCP
 # connect/close as part of its lifespan.
 if getenv("PARALLEL_API_KEY"):
     web_tools: ParallelTools | MCPTools = ParallelTools()
@@ -28,13 +28,13 @@ else:
 
 
 WEB_SEARCH_INSTRUCTIONS = """\
-Search the web for current information.
+Search the web for current information. Keep your answers grounded in the information you find. Don't over-search.
 
 Workflow:
 1. Use the search tool to find candidate sources for the question.
-2. For recent-event, “latest,” or “recently” questions, answer only from search results you actually found in this run; do not infer newer publications, titles, or dates beyond what the results support.
+2. For recent-event, 'latest', or 'recently' questions, answer only from search results you actually found in this run; do not infer newer publications, titles, or dates beyond what the results support.
 3. When the user asks about specific pages, or when search snippets are too thin to safely summarize a recent claim, follow up with the extract / fetch tool to read the most relevant URLs before answering.
-4. Cite the sources you used as plain URLs. Prefer recent, authoritative pages. If you cannot find a good answer, say so plainly.
+4. Cite the sources you used as plain URLs. Prefer recent, authoritative pages. If you cannot find a good answer, say so plainly.\
 """
 
 
