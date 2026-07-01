@@ -1,10 +1,10 @@
-# AgentOS Railway Template
+# Self-Driving Agent Platform
 
 This file is the source of truth for any agent (Claude Code, Codex, others) working in this repo. `CLAUDE.md` is a symlink to this file — edit one, both update.
 
 ## Project Overview
 
-A unified agent platform built on [Agno](https://docs.agno.com), shipped as a copy-pasteable starting point. Two reference agents demonstrate the two common shapes for supplying context to an agent. Postgres (pgvector) handles persistence for sessions, memory, and knowledge. Designed to run locally via Docker and deploy to Railway with a single script.
+A self-driving agent platform built on [Agno](https://docs.agno.com), shipped as a copy-pasteable starting point. Three reference agents demonstrate web search, codebase search, and UI-driven agent/team/workflow creation. Postgres (pgvector) handles persistence for sessions, memory, and knowledge. Designed to run locally via Docker and deploy to Railway with a single script.
 
 ## Architecture
 
@@ -12,13 +12,17 @@ A unified agent platform built on [Agno](https://docs.agno.com), shipped as a co
 AgentOS  (app/main.py)
 ├── WebSearch    (agents/web_search.py)   — Parallel SDK or keyless MCPTools
 ├── CodeSearch   (agents/code_search.py)  — WorkspaceContextProvider
-└── DeployCheck  (workflows/deployment_check.py) — reference workflow, fired by app/schedules.py
+├── Agent Builder (agents/agent_builder.py) — Agno docs MCP + StudioTool
+├── DeployCheck  (workflows/deployment_check.py) — deterministic readiness workflow
+└── EvalRegression (workflows/eval_regression.py) — opt-in eval profile workflow
 ```
 
 Shared:
 - PostgreSQL + pgvector for sessions, memory, knowledge.
 - `app.settings.default_model()` returns `OpenAIResponses(id="gpt-5.5")` — bump the model in one place.
-- Scheduler enabled by default (`scheduler=True`); `app/schedules.py` registers schedules from the lifespan. One reference schedule (a deterministic, free deployment check) runs daily **on** by default — set `ENABLE_DEPLOY_CHECK=False` to disable it.
+- `app.registry.registry` exposes the safe Studio registry Agent Builder can use: Agno docs MCP, web search, read-only code search, reasoning/calculator tools, schemas/functions, the default model, the shared DB, and reference agents.
+- `app.system_map.agentos_system_map()` gives CodeSearch a deterministic self-description of agents, workflows, schedules, quick prompts, eval profiles, and coding-agent skills.
+- Scheduler enabled by default (`scheduler=True`); `app/schedules.py` registers schedules from the lifespan. Deployment check runs daily **on** by default — set `ENABLE_DEPLOY_CHECK=False` to disable it. Eval regression is **off** by default — set `ENABLE_EVAL_REGRESSION=True` to schedule it.
 - Slack interface lights up automatically when both `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` are set.
 - JWT auth on whenever `RUNTIME_ENV == "prd"` (so production deploys are gated by default).
 
@@ -28,10 +32,16 @@ Shared:
 |------|---------|
 | [`app/main.py`](app/main.py) | AgentOS entrypoint — lifespan hook, conditional Slack, JWT gate. |
 | [`app/settings.py`](app/settings.py) | `default_model()` factory. |
+| [`app/agno_docs.py`](app/agno_docs.py) | Agno docs MCP helper. |
+| [`app/registry.py`](app/registry.py) | Safe Studio registry used by Agent Builder. |
+| [`app/studio_components.py`](app/studio_components.py) | Lightweight schemas/functions exposed through the Studio registry. |
+| [`app/system_map.py`](app/system_map.py) | Deterministic self-description helper exposed through CodeSearch. |
 | [`app/config.yaml`](app/config.yaml) | Quick prompts per agent (keyed by agent `id`). |
 | [`agents/web_search.py`](agents/web_search.py) | Reference agent — direct tools (Parallel SDK or MCP). |
 | [`agents/code_search.py`](agents/code_search.py) | Reference agent — context provider. |
+| [`agents/agent_builder.py`](agents/agent_builder.py) | Reference agent — creates agents, teams, and workflows through StudioTool with HITL gates. |
 | [`workflows/deployment_check.py`](workflows/deployment_check.py) | Reference workflow — a deterministic `Step` that checks DB, auth, scheduler URL, Slack config, and component imports; imported into `app/main.py` and passed to `AgentOS(workflows=[...])`. |
+| [`workflows/eval_regression.py`](workflows/eval_regression.py) | Optional workflow — runs a bounded eval profile and returns a compact report. Registered but not scheduled unless `ENABLE_EVAL_REGRESSION=True`. |
 | [`app/schedules.py`](app/schedules.py) | `register_schedules()` — cron registration, called from the lifespan (idempotent, fail-soft). |
 | [`db/session.py`](db/session.py) | `get_postgres_db()`, `create_knowledge()`. |
 | [`db/url.py`](db/url.py) | Builds the database URL from env. |
@@ -39,7 +49,7 @@ Shared:
 | [`evals/__main__.py`](evals/__main__.py) | `python -m evals` runner — wraps agno's `AgentAsJudgeEval` + `ReliabilityEval`. |
 | [`.agents/skills/`](.agents/skills/) | Dev-time **coding-agent workflows** (`create-new-agent`, `extend-agent`, `improve-agent`, `eval-and-improve`, `review-and-improve`) — slash commands coding agents run *on this repo*. `.claude/skills` is a committed symlink into it — see [Working with coding agents](#working-with-coding-agents). |
 | [`compose.yaml`](compose.yaml) | Docker Compose for local development. |
-| [`railway.json`](railway.json) | Railway deploy config (Docker + 2 replicas + 4Gi/2vCPU). |
+| [`railway.json`](railway.json) | Railway deploy config (Docker + 1 replica + 4Gi/2vCPU). |
 
 ## Development Setup
 
@@ -52,7 +62,7 @@ cp example.env .env
 docker compose up -d --build
 ```
 
-Hot-reload watches `agents/`, `app/`, `db/`, and `workflows/`. Edits land in <2s. `compose.yaml` sets `RUNTIME_ENV=dev`, `AGNO_DEBUG=True`, and `WAIT_FOR_DB=True` so JWT is off and the API blocks on the DB before serving.
+`compose.yaml` sets `RUNTIME_ENV=dev`, `AGNO_DEBUG=True`, and `WAIT_FOR_DB=True` so JWT is off and the API blocks on the DB before serving. Because this template uses MCPTools inside AgentOS, do not run uvicorn with `--reload`; restart `agentos-api` after code changes.
 
 ### Format & Validate
 
@@ -109,10 +119,11 @@ my_agent = Agent(
 )
 ```
 
-Two patterns to copy from:
+Three patterns to copy from:
 
 - **Direct tools** — see [`agents/web_search.py`](agents/web_search.py). The agent sees each tool individually. Best when the user knows which tools the agent needs.
 - **Context provider** — see [`agents/code_search.py`](agents/code_search.py). The agent sees one `query_<thing>` tool that hands off to a sub-agent. Best for one-source agents and when collapsing many tools into one keeps the model focused.
+- **Studio builder** — see [`agents/agent_builder.py`](agents/agent_builder.py). The agent sees StudioTool, a safe `Registry`, Agno docs MCP, and Studio confirmation gates. Best when the user should create or refine components from the AgentOS UI.
 
 ### Database
 
@@ -133,7 +144,7 @@ Knowledge bases use PgVector with `SearchType.hybrid` and `text-embedding-3-smal
 Two options:
 
 1. **Hand it to Claude Code** — run the `/create-new-agent` skill (or just ask to "create a new agent") in a Claude Code session pointed at this repo. Claude asks the user what the agent should do, generates the file, registers it, smoke-tests it. See [Working with coding agents](#working-with-coding-agents).
-2. **Do it manually** — create `agents/<slug>.py`, register in `app/main.py`, add prompts to `app/config.yaml`. Then `docker compose restart agentos-api` — uvicorn hot-reload is unreliable for newly-registered modules, so a restart is required for the new agent to load.
+2. **Do it manually** — create `agents/<slug>.py`, register in `app/main.py`, add prompts to `app/config.yaml`. Then `docker compose restart agentos-api`. This template uses MCPTools inside AgentOS, so do not rely on uvicorn reload.
 
 ## Iterating on an agent
 
@@ -146,7 +157,13 @@ Use `/extend-agent` to *change* the agent; use `/improve-agent` to *harden* it a
 
 ## Evals
 
-The eval suite lives in [`evals/`](evals/). Each case wraps agno's [`AgentAsJudgeEval`](https://docs.agno.com/evals/agent-as-judge) (LLM judge against a rubric, binary pass/fail) and/or [`ReliabilityEval`](https://docs.agno.com/evals/reliability) (tool-call assertion). Run with `python -m evals`. Results log to Postgres via `db=eval_db` so history is visible at os.agno.com.
+The eval suite lives in [`evals/`](evals/). Each case wraps agno's [`AgentAsJudgeEval`](https://docs.agno.com/evals/agent-as-judge) (LLM judge against a rubric, binary pass/fail) and/or [`ReliabilityEval`](https://docs.agno.com/evals/reliability) (tool-call assertion). Cases are tagged with profiles:
+
+- `smoke` — fast checks that prove the template's self-driving surfaces still work.
+- `release` — broader checks for pre-release confidence.
+- `live` — current web/source checks that are useful but should not be deterministic release gates.
+
+Run with `python -m evals --profile smoke`, `python -m evals --profile release`, or `python -m evals --case <name>`. Add `--json-output out.json` when a workflow or coding agent needs machine-readable results. Results log to Postgres via `db=eval_db` so history is visible at os.agno.com.
 
 To diagnose failures and fix in scope, run the `/eval-and-improve` skill ([`.agents/skills/eval-and-improve`](.agents/skills/eval-and-improve/SKILL.md)) in Claude Code.
 
@@ -173,11 +190,16 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `OPENAI_API_KEY` | yes | — | OpenAI key for models + embeddings. |
-| `RUNTIME_ENV` | no | `prd` | `dev` enables hot-reload and disables JWT. Compose sets this to `dev` for local. |
+| `RUNTIME_ENV` | no | `prd` | `dev` disables JWT. Compose sets this to `dev` for local — never put it in an env file that syncs to Railway, or production deploys unauthenticated. |
 | `JWT_VERIFICATION_KEY` | prd | — | Public key from os.agno.com. Required when `RUNTIME_ENV=prd` and `authorization=True`, unless `JWT_JWKS_FILE` is set. |
 | `JWT_JWKS_FILE` | prd | — | Path to a JWKS file; alternative to `JWT_VERIFICATION_KEY` for production JWT verification. |
 | `AGENTOS_URL` | no | `http://127.0.0.1:8000` | Scheduler base URL — cron triggers reach AgentOS over this. `scripts/railway/up.sh` auto-sets it to the created Railway domain (and writes it back into your env file); only set it by hand for custom domains or tunnels. Left at the localhost default in prod, scheduled jobs silently never fire. |
+| `INTERNAL_SERVICE_TOKEN` | no | auto-generated | Token the scheduler uses to call back into AgentOS. Auto-generated per process when unset — fine for a single replica. Running more than one replica, set one shared value everywhere, or scheduled runs 401 whenever a callback lands on a replica that didn't fire them. |
 | `ENABLE_DEPLOY_CHECK` | no | `True` | The reference deployment-check cron (`app/schedules.py`) runs daily by default. Set `False` to disable; the workflow stays runnable on demand regardless. |
+| `ENABLE_EVAL_REGRESSION` | no | `False` | If `True`, schedules the eval-regression workflow. Off by default because it uses model calls. |
+| `EVAL_REGRESSION_PROFILE` | no | `smoke` | Eval profile used by the scheduled eval-regression workflow. |
+| `EVAL_REGRESSION_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for eval-regression runs; applies only to cases that don't set their own `timeout_seconds`. |
+| `EVAL_REGRESSION_SUITE_TIMEOUT_SECONDS` | no | `300` | Whole-suite timeout for eval-regression runs. The default fits the `smoke` profile; raise it (e.g. `600`) when scheduling `release`. |
 | `PARALLEL_API_KEY` | no | — | Authenticates the WebSearch Agent's Parallel SDK / MCP connection (raises rate ceiling). |
 | `SLACK_BOT_TOKEN` | no | — | Bot token. Set with signing secret to enable the Slack interface. |
 | `SLACK_SIGNING_SECRET` | no | — | Signing secret. Both it and the bot token must be set for the interface to load. |
@@ -195,15 +217,29 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 
 `scheduler=True` is on in [`app/main.py`](app/main.py). A schedule is a cron expression + an HTTP endpoint (a workflow or agent run); the poller fires due jobs in the background. Registration lives in [`app/schedules.py`](app/schedules.py)'s `register_schedules()`, called from the lifespan — idempotent (`if_exists="update"`, safe on every boot) and fail-soft (a bad schedule logs a warning rather than crashing startup).
 
-**Reference example.** [`workflows/deployment_check.py`](workflows/deployment_check.py) is a one-step, **deterministic** workflow — no LLM, no token cost — that returns a deployment readiness report. It checks DB connectivity and tables, JWT config, scheduler URL, Slack env consistency, and reference component imports. [`app/schedules.py`](app/schedules.py) registers a daily cron that hits its endpoint (`POST /workflows/deployment-check/runs`). Because it's deterministic and free, the cron runs **on** by default (daily at 13:00 UTC); disable it with `ENABLE_DEPLOY_CHECK=False`. The workflow is always runnable on demand regardless of the flag.
+**Reference examples.** [`workflows/deployment_check.py`](workflows/deployment_check.py) is a one-step, **deterministic** workflow — no LLM, no token cost — that returns a deployment readiness report. It checks DB connectivity and tables, JWT config, scheduler URL, Slack env consistency, schedule flags, and reference component imports. [`app/schedules.py`](app/schedules.py) registers a daily cron that hits its endpoint (`POST /workflows/deployment-check/runs`). Because it's deterministic and free, the cron runs **on** by default (daily at 13:00 UTC); disable it with `ENABLE_DEPLOY_CHECK=False`.
+
+[`workflows/eval_regression.py`](workflows/eval_regression.py) runs a bounded eval profile and returns a compact report. It is registered in AgentOS for on-demand use, but its cron is **off** by default because it uses model calls. Set `ENABLE_EVAL_REGRESSION=True` to schedule the smoke profile daily at 14:00 UTC.
 
 To add your own: define a `Workflow` in `workflows/`, import it into [`app/main.py`](app/main.py) and add it to `AgentOS(workflows=[...])`, and register a schedule for it in `register_schedules()`. Other common uses: **maintenance** (purge old sessions, vacuum tables), **periodic re-evaluation** (run `python -m evals` weekly to catch regressions).
 
 See [agno scheduler docs](https://docs.agno.com/agent-os/scheduler) for the cron API.
 
+## Optional Platform Steward
+
+Keep this template light by default. For production operations, add a Platform Steward agent or workflow as an opt-in layer. It should read deployment-check output, eval-regression reports, traces, logs, and recent diffs; diagnose likely causes; then recommend or prepare a fix behind approval. Do not register it by default in this template.
+
+Good first tools:
+
+- read eval JSON reports
+- read recent deployment-check results
+- inspect trace/log summaries
+- inspect `git diff`
+- propose a patch or PR, but require human approval before mutation or deploy
+
 ## Slack
 
-Set `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` and restart. The default wiring in `app/main.py` routes Slack messages to `code_search` — change the `agent=` arg to point at any other agent. See the [agno Slack interface docs](https://docs.agno.com/agent-os/interfaces/overview) for the Slack-side app setup.
+Set `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` and restart. The default wiring in `app/main.py` routes Slack messages to `agent_builder` so users can request new components from chat. Change the `agent=` arg to point at another agent. See the [agno Slack interface docs](https://docs.agno.com/agent-os/interfaces/overview) for the Slack-side app setup.
 
 For Discord, Telegram, WhatsApp, and custom UIs, mirror the Slack conditional pattern with the relevant agno interface — see [agno interfaces overview](https://docs.agno.com/agent-os/interfaces/overview).
 
@@ -217,7 +253,7 @@ For Discord, Telegram, WhatsApp, and custom UIs, mirror the Slack conditional pa
 
 `up.sh` creates the domain before deploying and sets `AGENTOS_URL` to it (on Railway and in your env file), so the scheduler is reachable in prod out of the box.
 
-JWT auth is on by default. After creating the Railway domain, `up.sh` pauses if `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE` is missing, so you can connect the OS at os.agno.com (Connect OS → Live, name it `Live Agent Platform`, then Settings → OS & Security → Token-Based Authorization (JWT)), paste the full PEM into the prompt, and let the script save it to the env file. Live AgentOS Connections are a paid feature; use `PLATFORM30` to get 1 month off. The script re-reads the env file and pushes the key before the first deploy. If you skip the prompt or run non-interactively, add the key later and run `./scripts/railway/env-sync.sh`.
+JWT auth is on by default. After creating the Railway domain, `up.sh` pauses if `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE` is missing, so you can connect the OS at os.agno.com (Connect OS → Live, name it `Live Self-Driving Agent Platform`, then Settings → OS & Security → Token-Based Authorization (JWT)), paste the full PEM into the prompt, and let the script save it to the env file. Live AgentOS Connections are a paid feature; use `PLATFORM30` to get 1 month off. The script re-reads the env file and pushes the key before the first deploy. If you skip the prompt or run non-interactively, add the key later and run `./scripts/railway/env-sync.sh`.
 
 The Railway *project* is `agent-platform`; the app *service* is `agent-os`.
 

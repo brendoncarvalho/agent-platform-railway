@@ -265,7 +265,7 @@ if [[ -n "$AUTH_REQUIRES_JWT" && -z "$JWT_VERIFICATION_KEY" && -z "$JWT_JWKS_FIL
     echo ""
     echo -e "${BOLD}JWT_VERIFICATION_KEY not set${NC} — AgentOS won't serve production traffic without auth."
     echo -e "  1. Open ${BOLD}https://os.agno.com${NC} -> Connect OS -> Live -> enter ${APP_URL:-your Railway domain}"
-    echo -e "  2. Name it ${BOLD}Live Agent Platform${NC}"
+    echo -e "  2. Name it ${BOLD}Live Self-Driving Agent Platform${NC}"
     echo -e "  3. Note: Live AgentOS Connections are a paid feature; use ${BOLD}PLATFORM30${NC} to get 1 month off"
     echo -e "  4. Go to Settings -> OS & Security -> turn ${BOLD}Token-Based Authorization (JWT)${NC} on"
     echo -e "  5. Copy the public key"

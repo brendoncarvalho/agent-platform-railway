@@ -21,6 +21,10 @@ if getenv("PARALLEL_API_KEY"):
     web_tools: ParallelTools | MCPTools = ParallelTools()
 else:
     web_tools = MCPTools(url="https://search.parallel.ai/mcp", transport="streamable-http")
+    # agno 2.6.20 hardcodes name="MCPTools" for every MCP toolkit; matching the
+    # name used in app/registry.py lets the Studio registry dedupe this mirrored
+    # instance instead of listing an opaque duplicate.
+    web_tools.name = "parallel_web_search"
 
 
 WEB_SEARCH_INSTRUCTIONS = """\

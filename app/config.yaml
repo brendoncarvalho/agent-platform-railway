@@ -1,9 +1,13 @@
 chat:
   quick_prompts:
+    agent-builder:
+      - "Build an agent that tracks AI news and writes a daily brief"
+      - "Build a code review team that explains risky changes"
+      - "Build a workflow that researches a topic, drafts a report, and asks me to approve it"
     code-search:
       - "Tell me about this codebase"
       - "Teach me how to use this AgentOS"
-      - "What agents are available in this AgentOS?"
+      - "Show me this AgentOS system map"
     web-search:
       - "Tell me about Agno's AgentOS"
       - "What's the latest research from Anthropic?"

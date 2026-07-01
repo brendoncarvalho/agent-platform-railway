@@ -66,7 +66,11 @@ def _check_runtime() -> CheckResult:
             return _pass("Runtime", "Production mode with JWT verification configured.")
         return _fail("Runtime", "Production mode requires JWT_VERIFICATION_KEY or JWT_JWKS_FILE.")
     if runtime_env == "dev":
-        return _pass("Runtime", "Development mode; JWT authorization is disabled.")
+        return _warn(
+            "Runtime",
+            "Development mode; JWT authorization is disabled. Expected locally — "
+            "if this is a production deploy, remove RUNTIME_ENV=dev from the synced env vars.",
+        )
     return _warn("Runtime", f"Unexpected RUNTIME_ENV={runtime_env!r}; expected 'dev' or 'prd'.")
 
 
@@ -95,21 +99,34 @@ def _check_slack_config() -> CheckResult:
 
 def _check_reference_components() -> CheckResult:
     try:
+        from agents.agent_builder import agent_builder
         from agents.code_search import code_search
         from agents.web_search import web_search
+        from app.registry import registry
+        from workflows.eval_regression import eval_regression
     except Exception as exc:
-        return _fail("Components", f"Could not import reference agents: {exc}")
+        return _fail("Components", f"Could not import reference components: {exc}")
 
-    agent_ids = sorted([agent_id for agent_id in (web_search.id, code_search.id) if agent_id])
-    return _pass("Components", f"Reference agents import cleanly: {', '.join(agent_ids)}.")
+    agent_ids = sorted([agent_id for agent_id in (web_search.id, code_search.id, agent_builder.id) if agent_id])
+    workflow_ids = sorted([workflow_id for workflow_id in (deployment_check.id, eval_regression.id) if workflow_id])
+    return _pass(
+        "Components",
+        "Reference components import cleanly: "
+        f"agents={', '.join(agent_ids)}; workflows={', '.join(workflow_ids)}. "
+        f"Registry has {len(registry.tools)} tools.",
+    )
 
 
 def _check_schedule_flag() -> CheckResult:
-    if getenv("ENABLE_DEPLOY_CHECK", "True") == "True":
-        return _pass("Schedule", "Deployment-check cron is armed (daily, 13:00 UTC).")
-    return _pass(
-        "Schedule", "Deployment-check cron is disabled (ENABLE_DEPLOY_CHECK=False); run endpoint remains available."
-    )
+    deploy = getenv("ENABLE_DEPLOY_CHECK", "True") == "True"
+    evals = getenv("ENABLE_EVAL_REGRESSION", "False") == "True"
+    if deploy and evals:
+        return _pass("Schedule", "Deployment-check and eval-regression crons are armed.")
+    if deploy:
+        return _pass("Schedule", "Deployment-check cron is armed; eval-regression cron is opt-in and disabled.")
+    if evals:
+        return _pass("Schedule", "Eval-regression cron is armed; deployment-check cron is disabled.")
+    return _pass("Schedule", "Deployment-check and eval-regression crons are disabled; run endpoints remain available.")
 
 
 def _format_report(checks: list[CheckResult]) -> str:
@@ -144,7 +161,7 @@ def deployment_check_step(_step_input: StepInput) -> StepOutput:
 deployment_check = Workflow(
     id="deployment-check",
     name="Deployment Check",
-    description="Check DB, auth, scheduler URL, Slack config, and reference component imports.",
+    description="Check DB, auth, scheduler URL, Slack config, schedules, and reference component imports.",
     db=get_postgres_db(),
     steps=[Step(name="deployment-check", executor=deployment_check_step)],
 )

@@ -11,12 +11,12 @@ You are recursively extending a target agent **with the user in the driver's sea
 
 This is the user-driven half of the iteration loop. The autonomous half lives in [`improve-agent`](../improve-agent/SKILL.md) — Claude derives probes from the agent's `INSTRUCTIONS` and hardens behavior with no user input. Use this prompt to *change* the agent (add tools, add capabilities, refine the prompt, fix a known bug). Run the `improve-agent` skill afterward to confirm nothing else regressed.
 
-The platform is on `http://localhost:8000` with hot-reload enabled (`RUNTIME_ENV=dev`), so edits to `agents/<slug>.py` are picked up by uvicorn within ~1s. Edits to `app/main.py` (e.g. registering a new sub-agent) require a container restart — Step 5 covers this.
+The platform is on `http://localhost:8000` (`RUNTIME_ENV=dev`). This template uses MCPTools inside AgentOS, so uvicorn reload is disabled; code changes require a container restart — Step 5 covers this.
 
 ## 0. Preconditions
 
 - Live container reachable: `curl -sSf http://localhost:8000/health` returns 200. If not, ask the user to `docker compose up -d --build` first. (`docker compose ps` is unreliable from worktrees or alternate clones — trust the health probe.)
-- Live container is bound to *this* checkout — otherwise hot-reload won't see your edits:
+- Live container is bound to *this* checkout — otherwise restarts won't pick up your edits:
 
   ```bash
   docker inspect agentos-api --format '{{range .Mounts}}{{.Source}}{{"\n"}}{{end}}' | grep -F "$(pwd)"
@@ -79,10 +79,9 @@ Then edit. Files in scope:
 
 Keep edits surgical. One change per iteration of this loop — if the user asked for three things, do them one at a time so each can be smoke-tested independently.
 
-## 5. Reload
+## 5. Restart
 
-- **Edited only `agents/<slug>.py`, `app/config.yaml`, or other files inside `agents/` / `app/`** — uvicorn picks it up in ~1s. No restart.
-- **Edited `app/main.py`** (registered a sub-agent, changed interfaces) — restart:
+- Restart after edits:
 
   ```bash
   docker compose restart agentos-api
@@ -101,7 +100,7 @@ After a restart or rebuild, poll `/health` until the API is back:
 until curl -sSf http://localhost:8000/health > /dev/null; do sleep 0.5; done
 ```
 
-For hot-reload, confirm the edit reached the container before smoke-testing:
+Confirm the edit reached the container before smoke-testing:
 
 ```bash
 docker exec agentos-api grep -c "<unique substring from your edit>" /app/agents/<slug>.py

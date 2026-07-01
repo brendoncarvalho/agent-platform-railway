@@ -18,9 +18,12 @@ You're running the agent platform's eval suite, diagnosing every failure, fixing
 ## 1. Run the suite
 
 ```bash
-python -m evals               # full suite, concise (response + judge verdicts)
-python -m evals -v            # stream the full agent run with rich panels + eval tables
-python -m evals --case <name> # single case while iterating
+python -m evals --profile smoke        # fast template smoke profile
+python -m evals --profile release      # broader pre-release profile
+python -m evals --profile live         # current web/source checks
+python -m evals --case <name>          # single case while iterating
+python -m evals --json-output out.json # machine-readable results
+python -m evals -v                     # stream the full agent run with rich panels + eval tables
 ```
 
 Output ends with a summary block. Exit code is 0 on all-pass, non-zero on any failure or error.
@@ -71,13 +74,13 @@ After each fix, re-run the failing case:
 python -m evals --case <name>
 ```
 
-When all targeted cases pass, run the full suite once more to confirm nothing regressed:
+When all targeted cases pass, run the release profile once more to confirm nothing regressed:
 
 ```bash
-python -m evals
+python -m evals --profile release
 ```
 
-Stop when `python -m evals` exits 0 **and** prints an `Eval Summary` block. If a re-run aborts mid-stream (no summary, regardless of exit code), treat it as inconclusive — re-run before declaring green.
+Stop when `python -m evals --profile release` exits 0 **and** prints an `Eval Summary` block. If a re-run aborts mid-stream (no summary, regardless of exit code), treat it as inconclusive — re-run before declaring green.
 
 ## 5. Add a new case (if needed)
 
@@ -88,6 +91,7 @@ Case(
     name="<short_id>",
     agent=<the_agent>,
     input="<prompt>",
+    profiles=("release",),  # add "smoke" only for fast core checks; use "live" for current web/source checks
     # Either or both of:
     criteria="<rubric describing a correct response>",
     expected_tool_calls=("<tool_name>",),
@@ -100,7 +104,7 @@ Run `python -m evals --case <name>` to confirm it passes against the current age
 
 Every case logs to Postgres via `db=eval_db`. Connect your AgentOS at [os.agno.com](https://os.agno.com) and view eval history — useful for catching slow drift on a weekly cron.
 
-To run on a schedule, register the eval suite as a scheduled task on the AgentOS scheduler — see [agno scheduler docs](https://docs.agno.com/agent-os/scheduler).
+For the template's opt-in scheduled check, see [`workflows/eval_regression.py`](../../../workflows/eval_regression.py). It runs `python -m evals --profile ${EVAL_REGRESSION_PROFILE:-smoke}` and writes JSON output for a compact workflow report. Its cron is disabled by default; set `ENABLE_EVAL_REGRESSION=True` to enable it.
 
 ---
 
@@ -112,6 +116,8 @@ class Case:
     name: str
     agent: Agent
     input: str
+    profiles: tuple[str, ...] = ("release",)
+    timeout_seconds: int | None = None
 
     # Judge (LLM rubric, binary pass/fail): set to enable.
     criteria: str | None = None
