@@ -1,10 +1,10 @@
 chat:
   quick_prompts:
+    code-search:
+      - "Tell me about this codebase"
+      - "Teach me how to use this AgentOS"
+      - "What agents are available in this AgentOS?"
     web-search:
       - "Tell me about Agno's AgentOS"
       - "What's the latest research from Anthropic?"
       - "Search for OpenAI's latest model release"
-    code-search:
-      - "What agents are available in this project?"
-      - "How does the database connection work?"
-      - "Walk me through the main entry point"

@@ -72,7 +72,7 @@ agent_os = AgentOS(
     authorization=runtime_env == "prd",
     lifespan=lifespan,
     db=get_postgres_db(),
-    agents=[web_search, code_search],
+    agents=[code_search, web_search],
     workflows=[deployment_check],
     interfaces=interfaces,
     config=str(Path(__file__).parent / "config.yaml"),

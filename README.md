@@ -1,22 +1,27 @@
-# Agent Platform
+# Self-Driving Agent Platform
 
-An agent platform you build, run, and improve using coding agents.
+An agent platform you build, run, and improve with coding agents.
 
-This is a starter agent-platform built with [Agno](https://docs.agno.com). Everything runs in your cloud, with your data stored in your database.
+Built on [Agno](https://docs.agno.com). Everything runs in your cloud. Your data lives in your database.
 
-## Designed for coding agents
+## Driven by coding agents
 
-This codebase is designed for coding agents.
+This codebase is designed to be used by coding agents.
+- Trace data, agent code, system logs are all accessible to coding agents like Claude Code, allowing them to read, update, and improve the system end-to-end.
+- The Agno docs MCP is loaded so SDK knowledge is grounded in the real API.
+- 5 skills are included that cover the full agent development lifecycle.
 
-Because trace data, agent code, system logs, and the iteration tool all live in one place, coding agents like Claude Code can read, update, and improve the system end-to-end.
+### Skills
 
-Five skills that cover the full agent development lifecycle:
+This codebase includes five skills that cover the full agent development lifecycle:
 
-1. **Create.** Claude asks a few questions, creates the agent, registers it in `app/main.py`, adds quick prompts to `app/config.yaml`, restarts the container, and smoke-tests via cURL.
-2. **Improve.** Claude fine-tunes your agent based on its existing spec. Claude derives probes from the agent's `INSTRUCTIONS`, runs them against the live container, judges the responses, and edits until they pass.
-3. **Extend.** Claude adds a new feature to an agent. Add tools, refine prompts, fix bugs. The Agno docs MCP is loaded so toolkit research is grounded in the real API.
-4. **Hill Climb.** Claude runs the eval suite, diagnoses failures, and fixes what's in scope. Stops when all cases pass.
-5. **Review.** Claude sweeps the repo for drift between docs, code, and config. Auto-fixes mechanical drift like stale paths and missing env vars; flags anything bigger.
+1. `/create-new-agent`: Your coding agent asks a few questions to clarify requirements, creates the agent using research grounded in the Agno SDK docs, and smoke-tests it by running it in the live container.
+2. `/improve-agent`: Your coding agent fine-tunes your agent by running simulations in a loop. Claude derives probes from the agent's `INSTRUCTIONS`, runs them against the live container, judges the responses, and edits until they pass.
+3. `/extend-agent`: Extend your agents with new features. Add tools, refine prompts, fix bugs. The Agno docs MCP is loaded so SDK knowledge is grounded in the real API.
+4. `/eval-and-improve`: Run the eval suite, diagnose failures, and fix until all cases pass.
+5. `/review-and-improve`: Sweep the entire repo for drift between docs, code, and config. Auto-fixes mechanical drift like stale paths and missing env vars; flags anything bigger.
+
+Using these skills, your entire agent platform becomes self-driving, no manual intervention needed.
 
 ## Get Started
 
@@ -36,9 +41,12 @@ cp example.env .env
 docker compose up -d --build
 ```
 
-Confirm AgentOS is live at [http://localhost:8000/docs](http://localhost:8000/docs).
+Confirm your AgentOS is running at [http://localhost:8000/docs](http://localhost:8000/docs).
 
-Connect a UI: open [os.agno.com](https://os.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agent-platform&utm_content=agent-platform&utm_term=railway), click **Connect OS** → **Local**, enter `http://localhost:8000`, and connect.
+Connect the the AgentOS UI:
+1. Open [os.agno.com](https://os.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agent-platform&utm_content=agent-platform&utm_term=railway) and sign-in
+2. Click on **Connect OS**, enter `http://localhost:8000` as the URL, name it **Local AgentOS** and connect.
+3. Click on **Chat** on the **Code Search Agent**, then click on the middle prompt: "Teach me how to use this AgentOS".
 
 ### Step 2: Create your first agent
 
