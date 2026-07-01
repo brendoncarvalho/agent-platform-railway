@@ -59,7 +59,7 @@ cp .env .env.production
 # Edit .env.production with production values
 ```
 
-The deploy scripts reads `.env.production` first and falls back to `.env`. This lets you keep separate values for local and production: different OpenAI keys, production-only credentials, a different Slack workspace. `.env.production` is gitignored.
+The deploy scripts read `.env.production` first and fall back to `.env`. This lets you keep separate values for local and production: different OpenAI keys, production-only credentials, a different Slack workspace. `.env.production` is gitignored.
 
 ### 2. Deploy
 
@@ -76,7 +76,7 @@ Token-Based Authorization is on by default. Without `JWT_VERIFICATION_KEY` or `J
 Token-Based Auth gives you three things:
 
 1. **No public access.** The server rejects requests without a valid token.
-2. **Per-request identity.** Middleware parses the token and extracts the `user_id`, `session_id`, and custom claims. Each request is tied to a user and session, giving your auditability and traceability.
+2. **Per-request identity.** Middleware parses the token and extracts the `user_id`, `session_id`, and custom claims. Each request is tied to a user and session, giving you auditability and traceability.
 3. **Granular permissions.** User tokens can run an agent and view their own sessions. Admin tokens read everyone's sessions and test any agent.
 
 During `./scripts/railway/up.sh`, the script creates your Railway domain and pauses so you can mint the key before the app starts.
@@ -136,9 +136,46 @@ Set `authorization=False` in [`app/main.py`](app/main.py) and redeploy. Use this
 
 ## Using the platform
 
+This platform is designed around the **create → improve → evaluate → maintain** workflow.
+
+Create from the UI or from a coding agent, improve and evaluate with the skills, and maintain with a recurring drift sweep.
+
+### Create
+
+**From the UI.** Open **Agent Builder** and describe the job, as in the quickstart. Agent Builder pulls framework details from the Agno docs MCP, picks tools and models from the safe Studio registry, creates components behind confirmation gates, trial-runs them, and publishes when you approve.
+
+**From a coding agent.** For agents that live in the repo, open your coding agent of choice (Claude Code, Codex, Cursor) and run:
+
+```
+/create-new-agent
+```
+
+It asks a few questions, generates the agent file in `agents/`, registers it in `app/main.py`, adds quick prompts to `app/config.yaml`, restarts the container, and smoke-tests it live.
+
+### Improve
+
+Chat with your agent at [os.agno.com](https://os.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agent-platform&utm_content=agent-platform&utm_term=railway). Run realistic prompts, try edge cases, watch the traces and sessions.
+
+Then improve your agents by running the following skills:
+
+- **`/extend-agent`** — Add a tool, add a capability, refine the instructions, fix a known bug.
+- **`/improve-agent`** — Claude simulates scenarios from the agent's `INSTRUCTIONS`, runs them against the live container, judges the responses, and edits until they pass.
+
+### Evaluate
+
+Run the eval suite to check for regressions. The eval cases live in [`evals/cases.py`](evals/cases.py), tagged with profiles. The evals run on the host machine, so set up the venv with `./scripts/venv_setup.sh && source .venv/bin/activate`, then:
+
+```sh
+python -m evals --profile smoke     # fast checks of the self-driving surfaces
+```
+
+### Maintain
+
+Because the repo is managed primarily by coding agents, it moves fast. Run `/review-and-improve` before a release or after a refactor: it sweeps for drift between docs, code, and config, auto-fixes mechanical drift like stale paths and missing env vars, and flags anything bigger.
+
 ## Environment variables
 
-`compose.yaml` sets the dev defaults (`RUNTIME_ENV=dev`, `AGNO_DEBUG=True`, `WAIT_FOR_DB=True`) so local Docker skips JWT and waits for Postgres before serving. Production reads everything from `.env.production` via `./scripts/railway/env-sync.sh`.
+`compose.yaml` sets the dev defaults (`RUNTIME_ENV=dev`, `AGNO_DEBUG=True`, `WAIT_FOR_DB=True`) so local Docker skips JWT and waits for Postgres before serving.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
