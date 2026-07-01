@@ -49,5 +49,4 @@ web_search = Agent(
     add_datetime_to_context=True,
     add_history_to_context=True,
     num_history_runs=5,
-    markdown=True,
 )
