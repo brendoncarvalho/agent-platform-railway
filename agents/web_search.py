@@ -12,16 +12,13 @@ from agno.tools.parallel import ParallelTools
 from app.settings import default_model
 from db import get_postgres_db
 
-# When PARALLEL_API_KEY is set, use the parallel-web SDK —
-# the agent gets `parallel_search` and `parallel_extract` tools directly.
-# Without a key, fall back to the keyless MCP endpoint and the agent
-# gets `web_search` and `web_fetch` tools instead. AgentOS handles MCP
-# connect/close as part of its lifespan.
+# When PARALLEL_API_KEY is set, use the parallel-web SDK.
+# Without a key, fall back to the keyless MCP endpoint.
+# AgentOS handles MCP connect/close as part of its lifespan.
 if getenv("PARALLEL_API_KEY"):
     web_tools: ParallelTools | MCPTools = ParallelTools()
 else:
-    # Name matches app/registry.py so the registry dedupes this mirrored instance.
-    web_tools = MCPTools(url="https://search.parallel.ai/mcp", transport="streamable-http", name="parallel_web_search")
+    web_tools = MCPTools(url="https://search.parallel.ai/mcp", transport="streamable-http", name="parallel_tools")
 
 
 WEB_SEARCH_INSTRUCTIONS = """\

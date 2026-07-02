@@ -2,8 +2,7 @@
 Deployment Check
 ================
 
-A reference workflow that checks whether this AgentOS deployment is wired correctly.
-It performs no model calls and has no external delivery side effects.
+A reference workflow that checks whether the AgentOS is wired correctly.
 """
 
 from dataclasses import dataclass

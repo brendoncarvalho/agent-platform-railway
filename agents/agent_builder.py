@@ -6,7 +6,7 @@ Agent Builder
 from agno.agent import Agent
 from agno.tools.studio import StudioTools
 
-from app.registry import get_agno_docs_mcp_tools, registry
+from app.registry import get_agno_docs_tools, registry
 from app.settings import default_model
 from db import get_postgres_db
 
@@ -46,7 +46,7 @@ decision. Do not re-explain the gate and docs rules already stated above, and do
 trial-run — the component is done at version 1.
 
 The public registry is safe by default. Your own tools are the Agno docs MCP and the Studio tools; \
-web search, read-only codebase inspection, calculator, and reasoning are registry components you wire \
+web search, read-only codebase inspection, and reasoning are registry components you wire \
 into the agents you build, alongside the default model and the shared database. You appear in the \
 registry's agent list yourself — never compose yourself (agent-builder) into a team or workflow you \
 create; pick specialist agents from the registry instead. Do not promise shell \
@@ -69,7 +69,7 @@ agent_builder = Agent(
     model=default_model(),
     db=get_postgres_db(),
     tools=[
-        *get_agno_docs_mcp_tools(),
+        *get_agno_docs_tools(),
         StudioTools(
             registry=registry,
             db=get_postgres_db(),
