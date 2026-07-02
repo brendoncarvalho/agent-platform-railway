@@ -8,7 +8,7 @@ Built on [Agno](https://docs.agno.com). Everything runs in your cloud. Your data
 
 This codebase has two self-driving loops:
 
-- **Coding-agent skills** let Claude Code, Codex, Cursor, and other coding agents build, test, and harden the platform itself. Five skills cover the full agent development lifecycle — see [Using the platform](#using-the-platform).
+- **Coding-agent skills** let Claude Code, Codex, Cursor, and other coding agents build, test, and improve the platform automatically. Five skills cover the full agent development lifecycle — see [Using the platform](#using-the-platform).
 - **Agent Builder in the UI** creates agents, teams, and workflows through AgentOS Studio tools, grounded by the Agno docs MCP and a safe registry.
 
 Trace data, agent code, evals, and system logs are all available to coding agents, so the platform can inspect and improve itself end to end.
@@ -184,7 +184,6 @@ Because the repo is managed primarily by coding agents, it moves fast. Run `/rev
 | `JWT_VERIFICATION_KEY` | prd | none | Public key from os.agno.com. Required when `RUNTIME_ENV=prd`, unless `JWT_JWKS_FILE` is set. |
 | `JWT_JWKS_FILE` | prd | none | Path to a JWKS file; alternative to `JWT_VERIFICATION_KEY` for production JWT verification. |
 | `AGENTOS_URL` | no | `http://127.0.0.1:8000` | Scheduler base URL. `scripts/railway/up.sh` auto-sets it to your Railway domain; set by hand only for a custom domain or tunnel. |
-| `INTERNAL_SERVICE_TOKEN` | no | auto-generated | Scheduler-to-AgentOS callback token. Auto-generated per process — fine for one replica; set one shared value when running several. |
 | `ENABLE_DEPLOY_CHECK` | no | `True` | The reference deployment-check cron runs daily by default. Set `False` to disable; the workflow is runnable on demand regardless. |
 | `ENABLE_SCHEDULED_EVALS` | no | `False` | If `True`, schedules the run-evals workflow daily. Off by default because it uses model calls. |
 | `EVALS_PROFILE` | no | `smoke` | Eval profile used by the run-evals workflow. |

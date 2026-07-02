@@ -1,6 +1,6 @@
 """
 AgentOS Registry
-===============
+================
 
 The tools, functions, models, databases, and reference agents available to AgentOS Studio.
 """

@@ -190,7 +190,6 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 | `JWT_VERIFICATION_KEY` | prd | — | Public key from os.agno.com. Required when `RUNTIME_ENV=prd` and `authorization=True`, unless `JWT_JWKS_FILE` is set. |
 | `JWT_JWKS_FILE` | prd | — | Path to a JWKS file; alternative to `JWT_VERIFICATION_KEY` for production JWT verification. |
 | `AGENTOS_URL` | no | `http://127.0.0.1:8000` | Scheduler base URL — cron triggers reach AgentOS over this. `scripts/railway/up.sh` auto-sets it to the created Railway domain (and writes it back into your env file); only set it by hand for custom domains or tunnels. Left at the localhost default in prod, scheduled jobs silently never fire. |
-| `INTERNAL_SERVICE_TOKEN` | no | auto-generated | Token the scheduler uses to call back into AgentOS. Auto-generated per process when unset — fine for a single replica. Running more than one replica, set one shared value everywhere, or scheduled runs 401 whenever a callback lands on a replica that didn't fire them. |
 | `ENABLE_DEPLOY_CHECK` | no | `True` | The reference deployment-check cron (`app/schedules.py`) runs daily by default. Set `False` to disable; the workflow stays runnable on demand regardless. |
 | `ENABLE_SCHEDULED_EVALS` | no | `False` | If `True`, schedules the run-evals workflow daily. Off by default because it uses model calls. |
 | `EVALS_PROFILE` | no | `smoke` | Eval profile used by the run-evals workflow. |

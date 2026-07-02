@@ -2,7 +2,7 @@ chat:
   quick_prompts:
     agent-builder:
       - "Build an agent that tracks AI news and writes a daily brief"
-      - "Build a multi-agent team with code search, web search agents"
+      - "Build a multi-agent team with code search and web search agents"
       - "Build a workflow that researches a topic, drafts a report, and works with me on improving it"
     code-search:
       - "Tell me about this codebase"

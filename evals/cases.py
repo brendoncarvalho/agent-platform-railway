@@ -9,7 +9,7 @@ Each case sends one input to one agent and (optionally) checks two things:
 - **reliability** — `ReliabilityEval` checks which tools fired against
   `expected_tool_calls`.
 
-Results are stored in Postgres via `eval_db` and are visible at os.agno.com
+Results are stored in Postgres via `eval_db` and are visible at os.agno.com.
 
 Add a case below, choose its profiles (`smoke`, `release`, `live`), then run
 `python -m evals --profile <profile>`.
