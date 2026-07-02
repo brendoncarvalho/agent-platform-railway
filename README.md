@@ -132,13 +132,13 @@ To re-sync environment variables, run the following command:
 
 ### Opting out of JWT (not recommended)
 
-Set `authorization=False` in [`app/main.py`](app/main.py) and redeploy. Use this only inside a private VPC behind another auth layer. Without it, anyone who guesses your Railway domain can read your data, run your agents, and access your platform.
+Set `authorization=False` in [`app/main.py`](app/main.py) and redeploy. Use this only inside a private VPC behind another auth layer. Without it, anyone who guesses your Railway domain can access your platform.
 
 ## Using the platform
 
 This platform is designed around the **create → improve → evaluate → maintain** workflow.
 
-Create from the UI or from a coding agent, improve and evaluate with the skills, and maintain with a recurring drift sweep.
+Create agents/teams/workflows from the UI or using a coding agent, improve and evaluate with the skills, and maintain with a recurring drift sweep.
 
 ### Create
 

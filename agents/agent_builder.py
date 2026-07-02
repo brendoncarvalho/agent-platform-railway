@@ -6,8 +6,7 @@ Agent Builder
 from agno.agent import Agent
 from agno.tools.studio import StudioTools
 
-from app.agno_docs import get_agno_docs_mcp_tools
-from app.registry import registry
+from app.registry import get_agno_docs_mcp_tools, registry
 from app.settings import default_model
 from db import get_postgres_db
 

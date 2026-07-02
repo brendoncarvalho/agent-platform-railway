@@ -31,9 +31,7 @@ Shared:
 |------|---------|
 | [`app/main.py`](app/main.py) | AgentOS entrypoint — lifespan hook, conditional Slack, JWT gate. |
 | [`app/settings.py`](app/settings.py) | `default_model()` factory. |
-| [`app/agno_docs.py`](app/agno_docs.py) | Agno docs MCP helper. |
-| [`app/registry.py`](app/registry.py) | Safe Studio registry used by Agent Builder. |
-| [`app/studio_components.py`](app/studio_components.py) | Lightweight schemas/functions exposed through the Studio registry. |
+| [`app/registry.py`](app/registry.py) | Safe Studio registry used by Agent Builder — docs MCP, web tools, demo schemas/functions, reference agents. |
 | [`app/config.yaml`](app/config.yaml) | Quick prompts per agent (keyed by agent `id`). |
 | [`agents/web_search.py`](agents/web_search.py) | Reference agent — direct tools (Parallel SDK or MCP). |
 | [`agents/code_search.py`](agents/code_search.py) | Reference agent — context provider. |
