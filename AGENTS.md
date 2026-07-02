@@ -21,7 +21,6 @@ Shared:
 - PostgreSQL + pgvector for sessions, memory, knowledge.
 - `app.settings.default_model()` returns `OpenAIResponses(id="gpt-5.5")` — bump the model in one place.
 - `app.registry.registry` exposes the safe Studio registry Agent Builder can use: Agno docs MCP, web search, read-only code search, reasoning/calculator tools, schemas/functions, the default model, the shared DB, and reference agents.
-- `app.system_map.agentos_system_map()` gives CodeSearch a deterministic self-description of agents, workflows, schedules, quick prompts, eval profiles, and coding-agent skills.
 - Scheduler enabled by default (`scheduler=True`); `app/schedules.py` registers schedules from the lifespan. Deployment check runs daily **on** by default — set `ENABLE_DEPLOY_CHECK=False` to disable it. Eval regression is **off** by default — set `ENABLE_EVAL_REGRESSION=True` to schedule it.
 - Slack interface lights up automatically when both `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` are set.
 - JWT auth on whenever `RUNTIME_ENV == "prd"` (so production deploys are gated by default).
@@ -35,7 +34,6 @@ Shared:
 | [`app/agno_docs.py`](app/agno_docs.py) | Agno docs MCP helper. |
 | [`app/registry.py`](app/registry.py) | Safe Studio registry used by Agent Builder. |
 | [`app/studio_components.py`](app/studio_components.py) | Lightweight schemas/functions exposed through the Studio registry. |
-| [`app/system_map.py`](app/system_map.py) | Deterministic self-description helper exposed through CodeSearch. |
 | [`app/config.yaml`](app/config.yaml) | Quick prompts per agent (keyed by agent `id`). |
 | [`agents/web_search.py`](agents/web_search.py) | Reference agent — direct tools (Parallel SDK or MCP). |
 | [`agents/code_search.py`](agents/code_search.py) | Reference agent — context provider. |
@@ -199,7 +197,7 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 | `ENABLE_EVAL_REGRESSION` | no | `False` | If `True`, schedules the eval-regression workflow. Off by default because it uses model calls. |
 | `EVAL_REGRESSION_PROFILE` | no | `smoke` | Eval profile used by the scheduled eval-regression workflow. |
 | `EVAL_REGRESSION_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for eval-regression runs; applies only to cases that don't set their own `timeout_seconds`. |
-| `EVAL_REGRESSION_SUITE_TIMEOUT_SECONDS` | no | `300` | Whole-suite timeout for eval-regression runs. The default fits the `smoke` profile; raise it (e.g. `600`) when scheduling `release`. |
+| `EVAL_REGRESSION_SUITE_TIMEOUT_SECONDS` | no | `600` | Whole-suite timeout for eval-regression runs. The default fits the `smoke` profile; raise it (e.g. `900`) when scheduling `release`. |
 | `PARALLEL_API_KEY` | no | — | Authenticates the WebSearch Agent's Parallel SDK / MCP connection (raises rate ceiling). |
 | `SLACK_BOT_TOKEN` | no | — | Bot token. Set with signing secret to enable the Slack interface. |
 | `SLACK_SIGNING_SECRET` | no | — | Signing secret. Both it and the bot token must be set for the interface to load. |

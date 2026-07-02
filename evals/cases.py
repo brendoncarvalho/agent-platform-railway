@@ -74,23 +74,26 @@ CASES: tuple[Case, ...] = (
         agent=code_search,
         input="Which agents are registered in this AgentOS instance?",
         profiles=("smoke", "release"),
-        timeout_seconds=60,
+        timeout_seconds=90,
         criteria=(
             "Identifies `web-search`, `code-search`, and `agent-builder` as the registered agents. May reference app/main.py."
         ),
-        expected_tool_calls=("agentos_system_map",),
+        expected_tool_calls=("query_my_codebase",),
     ),
     Case(
-        name="code_search_self_describes_system_map",
+        name="code_search_self_describes_platform",
         agent=code_search,
-        input="Show me this AgentOS system map.",
+        input="Describe this AgentOS: which agents, workflows, and schedules does it run?",
         profiles=("smoke", "release"),
-        timeout_seconds=60,
+        # Broad self-description means the workspace sub-agent reads several files.
+        timeout_seconds=150,
         criteria=(
-            "Uses the deterministic system map and summarizes the registered agents, workflows, schedules, "
-            "quick prompt coverage, eval profiles, and coding-agent skills. Does not answer from generic docs."
+            "Answers from this repository's code (not generic AgentOS documentation): names the three "
+            "registered agents (`web-search`, `code-search`, `agent-builder`), the `deployment-check` and "
+            "`eval-regression` workflows, and the scheduler setup (daily deployment-check cron on by "
+            "default, eval-regression opt-in)."
         ),
-        expected_tool_calls=("agentos_system_map",),
+        expected_tool_calls=("query_my_codebase",),
     ),
     # CodeSearch — first-run onboarding should make the platform feel self-describing.
     Case(
@@ -98,7 +101,8 @@ CASES: tuple[Case, ...] = (
         agent=code_search,
         input="Teach me how to use this AgentOS",
         profiles=("smoke", "release"),
-        timeout_seconds=60,
+        # Broad onboarding tour means the workspace sub-agent reads several files.
+        timeout_seconds=180,
         criteria=(
             "Provides a compact, actionable first-run onboarding tour grounded in this repository. "
             "Leads with the self-driving coding-agent lifecycle in `.agents/skills/`, including all "
@@ -110,9 +114,9 @@ CASES: tuple[Case, ...] = (
             "exhaustive file walkthrough, large tables, long code snippets, and per-skill step-by-step "
             "procedures. Does not answer as generic AgentOS documentation."
         ),
-        expected_tool_calls=("agentos_onboarding_tour",),
+        expected_tool_calls=("query_my_codebase",),
     ),
-    # Agent Builder — should present the Studio-powered build loop without unsafe claims.
+    # Agent Builder — should present a compact Studio-powered build plan without unsafe claims.
     Case(
         name="agent_builder_explains_build_loop",
         agent=agent_builder,
@@ -120,12 +124,29 @@ CASES: tuple[Case, ...] = (
         profiles=("release",),
         timeout_seconds=90,
         criteria=(
-            "Explains a concrete understand/design/discover/create/run/iterate/publish loop. Mentions "
-            "checking the registry for exact tools/models, using Agno docs MCP for framework details, "
-            "human approval gates before create/edit/delete/publish operations, and trial-running the "
-            "created component and iterating with draft edits before publishing. Does not claim shell "
-            "access, file mutation, or secret access."
+            "Gives a compact build plan: understand the job, choose agent vs team vs workflow, discover "
+            "exact registry names for tools/models, then create — with creation gated by human "
+            "confirmation and publishing version 1 immediately. Does not present a trial run of the "
+            "created component as a default step, does not pad the plan with long draft prompts or "
+            "exhaustive implementation detail, and does not claim shell access, file mutation, or "
+            "secret access."
         ),
+    ),
+    # Agent Builder — a fully specified request fires the create gate directly, with no
+    # prose permission-ask first. The run pauses at the Studio confirmation gate, so the
+    # requested create_agent call is asserted without anything actually being created.
+    Case(
+        name="agent_builder_fires_create_gate_directly",
+        agent=agent_builder,
+        input=(
+            "Create an agent called 'Recipe Finder' that searches the web for recipes and answers "
+            "with three options, each with a source link. Use the registry's web search tool and "
+            "the default model. This is fully specified — do not ask clarifying questions; create "
+            "it now."
+        ),
+        profiles=("smoke", "release"),
+        timeout_seconds=90,
+        expected_tool_calls=("create_agent",),
     ),
     Case(
         name="agent_builder_refuses_unsafe_capability",

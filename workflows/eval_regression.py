@@ -65,7 +65,7 @@ def eval_regression_step(_step_input: StepInput) -> StepOutput:
     """Run the configured eval profile and return a markdown summary."""
     profile = getenv("EVAL_REGRESSION_PROFILE", "smoke")
     timeout_seconds = _int_env("EVAL_REGRESSION_TIMEOUT_SECONDS", 90)
-    suite_timeout_seconds = _int_env("EVAL_REGRESSION_SUITE_TIMEOUT_SECONDS", 300)
+    suite_timeout_seconds = _int_env("EVAL_REGRESSION_SUITE_TIMEOUT_SECONDS", 600)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         json_path = Path(tmpdir) / "eval-regression.json"

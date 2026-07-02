@@ -142,7 +142,7 @@ Create from the UI or from a coding agent, improve and evaluate with the skills,
 
 ### Create
 
-**From the UI.** Open **Agent Builder** and describe the job, as in the quickstart. Agent Builder pulls framework details from the Agno docs MCP, picks tools and models from the safe Studio registry, creates components behind confirmation gates, trial-runs them, and publishes when you approve.
+**From the UI.** Open **Agent Builder** and describe the job, as in the quickstart. Agent Builder pulls framework details from the Agno docs MCP, picks tools and models from the safe Studio registry, and creates components behind confirmation gates — approving the create publishes version 1 immediately, later edits stay drafts until you approve publishing, and it runs the component only when you ask.
 
 **From a coding agent.** For agents that live in the repo, open your coding agent of choice (Claude Code, Codex, Cursor) and run:
 
@@ -189,7 +189,7 @@ Because the repo is managed primarily by coding agents, it moves fast. Run `/rev
 | `ENABLE_EVAL_REGRESSION` | no | `False` | If `True`, schedules the eval-regression workflow. Off by default because it uses model calls. |
 | `EVAL_REGRESSION_PROFILE` | no | `smoke` | Eval profile used by the scheduled eval-regression workflow. |
 | `EVAL_REGRESSION_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for eval-regression runs; applies only to cases that don't set their own `timeout_seconds`. |
-| `EVAL_REGRESSION_SUITE_TIMEOUT_SECONDS` | no | `300` | Whole-suite timeout for eval-regression runs. The default fits the `smoke` profile; raise it (e.g. `600`) when scheduling `release`. |
+| `EVAL_REGRESSION_SUITE_TIMEOUT_SECONDS` | no | `600` | Whole-suite timeout for eval-regression runs. The default fits the `smoke` profile; raise it (e.g. `900`) when scheduling `release`. |
 | `PARALLEL_API_KEY` | no | none | Authenticates the WebSearch Agent's Parallel SDK / MCP connection. |
 | `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | no | none | Both must be set to enable the Slack interface. |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` | no | matches compose | Postgres connection. |
