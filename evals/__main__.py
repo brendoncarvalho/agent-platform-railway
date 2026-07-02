@@ -2,17 +2,17 @@
 Run Evals
 =========
 
-python -m evals                # run all cases (concise UI)
-python -m evals --case <name>  # run one case
-python -m evals -v             # stream the agent's run with full panels
+python -m evals                         # run all cases (concise UI)
+python -m evals --profile smoke         # run a tagged subset
+python -m evals --case <name>           # run one case
+python -m evals --json-output out.json  # write machine-readable results
+python -m evals -v                      # stream the agent's run with full panels
 
 Each case runs the agent once, then optionally checks the response with
-`AgentAsJudgeEval` (when `criteria` is set) and `ReliabilityEval` (when
-`expected_tool_calls` is set).
+`AgentAsJudgeEval` (when `criteria` is set) and
+`ReliabilityEval` (when `expected_tool_calls` is set).
 
 Both log to Postgres through `eval_db`. Connect your AgentOS at os.agno.com to see history.
-
-Exit 0 on all-pass, non-zero on any failure or error.
 """
 
 # Hydrate os.environ from .env before any module that reads env at import time
@@ -22,7 +22,10 @@ from evals.dotenv import load_dotenv
 load_dotenv()
 
 import asyncio  # noqa: E402
+import json  # noqa: E402
+import time  # noqa: E402
 from dataclasses import dataclass  # noqa: E402
+from pathlib import Path  # noqa: E402
 from uuid import uuid4  # noqa: E402
 
 import typer  # noqa: E402
@@ -39,9 +42,16 @@ app = typer.Typer(add_completion=False, no_args_is_help=False, pretty_exceptions
 console = Console()
 
 
+def _agent_id(case: Case) -> str:
+    return case.agent.id or case.name
+
+
 @dataclass
 class CaseOutcome:
     name: str
+    agent_id: str
+    profiles: tuple[str, ...]
+    duration_seconds: float = 0.0
     judge_passed: bool | None = None
     reliability_passed: bool | None = None
     error: str | None = None
@@ -54,7 +64,15 @@ class CaseOutcome:
         return bool(checks) and all(checks)
 
 
-async def _run_case_async(case: Case, *, verbose: bool) -> CaseOutcome:
+async def _run_case_inner_async(case: Case, *, verbose: bool) -> CaseOutcome:
+    if case.criteria is None and case.expected_tool_calls is None:
+        return CaseOutcome(
+            name=case.name,
+            agent_id=_agent_id(case),
+            profiles=case.profiles,
+            error="case has no checks configured: set criteria and/or expected_tool_calls",
+        )
+
     judge_passed: bool | None = None
     rel_passed: bool | None = None
     judge_err: str | None = None
@@ -80,9 +98,19 @@ async def _run_case_async(case: Case, *, verbose: bool) -> CaseOutcome:
         else:
             response = await _run_with_live_spinner(case, session_id)
         if response is None:
-            return CaseOutcome(name=case.name, error="agent: no run output recorded")
+            return CaseOutcome(
+                name=case.name,
+                agent_id=_agent_id(case),
+                profiles=case.profiles,
+                error="agent: no run output recorded",
+            )
     except Exception as exc:
-        return CaseOutcome(name=case.name, error=f"agent.arun: {type(exc).__name__}: {exc}")
+        return CaseOutcome(
+            name=case.name,
+            agent_id=_agent_id(case),
+            profiles=case.profiles,
+            error=f"agent.arun: {type(exc).__name__}: {exc}",
+        )
 
     output_str = str(response.content) if response.content else ""
 
@@ -128,6 +156,8 @@ async def _run_case_async(case: Case, *, verbose: bool) -> CaseOutcome:
 
     return CaseOutcome(
         name=case.name,
+        agent_id=_agent_id(case),
+        profiles=case.profiles,
         judge_passed=judge_passed,
         reliability_passed=rel_passed,
         error="; ".join(e for e in (judge_err, rel_err) if e) or None,
@@ -197,8 +227,90 @@ def _print_reliability_verdict(rel_result: object, expected_tools: tuple[str, ..
     console.print(f"\n[bold]Reliability:[/bold] [{style}]{tag}[/{style}]  [dim]expected: {expected}[/dim]")
 
 
-def run_case(case: Case, *, verbose: bool) -> CaseOutcome:
-    return asyncio.run(_run_case_async(case, verbose=verbose))
+async def _run_case_async(case: Case, *, verbose: bool, timeout_seconds: int) -> CaseOutcome:
+    start = time.perf_counter()
+    try:
+        outcome = await asyncio.wait_for(
+            _run_case_inner_async(case, verbose=verbose),
+            timeout=case.timeout_seconds or timeout_seconds,
+        )
+    except TimeoutError:
+        outcome = CaseOutcome(
+            name=case.name,
+            agent_id=_agent_id(case),
+            profiles=case.profiles,
+            error=f"timeout: exceeded {case.timeout_seconds or timeout_seconds}s",
+        )
+    outcome.duration_seconds = round(time.perf_counter() - start, 3)
+    return outcome
+
+
+async def _run_cases_async(cases: list[Case], *, verbose: bool, timeout_seconds: int) -> list[CaseOutcome]:
+    outcomes: list[CaseOutcome] = []
+    for i, c in enumerate(cases, 1):
+        console.rule(f"[bold]{c.name}[/bold]  [dim]{c.agent.id} · {i}/{len(cases)}[/dim]")
+        outcomes.append(await _run_case_async(c, verbose=verbose, timeout_seconds=timeout_seconds))
+
+    # Some toolkit transports schedule async close work after a case finishes.
+    # Keeping the suite on one event loop and yielding once avoids noisy
+    # "event loop is closed" cleanup warnings in normal eval output.
+    await asyncio.sleep(0)
+    return outcomes
+
+
+def _case_matches(case: Case, *, case_name: str | None, profile: str | None) -> bool:
+    if case_name and case.name != case_name:
+        return False
+    if profile and profile not in case.profiles:
+        return False
+    return True
+
+
+def _build_payload(outcomes: list[CaseOutcome]) -> dict:
+    passed = sum(1 for outcome in outcomes if outcome.passed)
+    return {
+        "summary": {
+            "total": len(outcomes),
+            "passed": passed,
+            "failed": len(outcomes) - passed,
+            "status": "PASS" if passed == len(outcomes) else "FAIL",
+        },
+        "cases": [
+            {
+                "name": outcome.name,
+                "agent_id": outcome.agent_id,
+                "profiles": list(outcome.profiles),
+                "duration_seconds": outcome.duration_seconds,
+                "judge_passed": outcome.judge_passed,
+                "reliability_passed": outcome.reliability_passed,
+                "passed": outcome.passed,
+                "error": outcome.error,
+            }
+            for outcome in outcomes
+        ],
+    }
+
+
+async def run_profile(profile: str | None = None, case_name: str | None = None, default_timeout: int = 120) -> dict:
+    """Run the selected cases in-process and return the results payload.
+
+    Embedding entrypoint (used by the run-evals workflow) — same selection and
+    payload shape as the CLI, with the console UI suppressed.
+    """
+    cases = [c for c in CASES if _case_matches(c, case_name=case_name, profile=profile)]
+    was_quiet = console.quiet
+    console.quiet = True
+    try:
+        outcomes = await _run_cases_async(cases, verbose=False, timeout_seconds=default_timeout)
+    finally:
+        console.quiet = was_quiet
+    return _build_payload(outcomes)
+
+
+def _write_json_output(path: Path, outcomes: list[CaseOutcome]) -> None:
+    payload = _build_payload(outcomes)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
 def _check_cell(passed: bool | None) -> str:
@@ -213,6 +325,10 @@ def _check_cell(passed: bool | None) -> str:
 def main(
     ctx: typer.Context,
     case: str = typer.Option(None, "--case", help="Run only this case by name"),
+    profile: str = typer.Option(None, "--profile", help="Run cases tagged with this profile: smoke, release, live"),
+    timeout_seconds: int = typer.Option(120, "--timeout", help="Default per-case timeout in seconds"),
+    json_output: Path | None = typer.Option(None, "--json-output", help="Write machine-readable JSON results"),
+    list_cases: bool = typer.Option(False, "--list", help="List selected cases without running them"),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -224,18 +340,40 @@ def main(
     if ctx.invoked_subcommand is not None:
         return
 
-    cases = list(CASES)
-    if case:
-        cases = [c for c in cases if c.name == case]
-        if not cases:
-            console.print(f"[red]no case named[/red] {case!r}")
-            console.print(f"  [dim]available:[/dim] {', '.join(c.name for c in CASES)}")
-            raise typer.Exit(2)
+    cases = [c for c in CASES if _case_matches(c, case_name=case, profile=profile)]
+    if not cases:
+        selector = f"case={case!r}, profile={profile!r}"
+        console.print(f"[red]no cases selected[/red] ({selector})")
+        console.print(f"  [dim]available:[/dim] {', '.join(c.name for c in CASES)}")
+        raise typer.Exit(2)
 
-    outcomes: list[CaseOutcome] = []
-    for i, c in enumerate(cases, 1):
-        console.rule(f"[bold]{c.name}[/bold]  [dim]{c.agent.id} · {i}/{len(cases)}[/dim]")
-        outcomes.append(run_case(c, verbose=verbose))
+    if list_cases:
+        table = Table(title="Eval Cases", title_style="bold sky_blue1", show_header=True, header_style="bold")
+        table.add_column("Case", overflow="fold")
+        table.add_column("Agent")
+        table.add_column("Profiles")
+        table.add_column("Timeout")
+        for c in cases:
+            table.add_row(c.name, c.agent.id, ", ".join(c.profiles), str(c.timeout_seconds or timeout_seconds))
+        console.print(table)
+        if json_output is not None:
+            payload = {
+                "cases": [
+                    {
+                        "name": c.name,
+                        "agent_id": _agent_id(c),
+                        "profiles": list(c.profiles),
+                        "timeout_seconds": c.timeout_seconds or timeout_seconds,
+                    }
+                    for c in cases
+                ]
+            }
+            json_output.parent.mkdir(parents=True, exist_ok=True)
+            json_output.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+            console.print(f"[dim]json output:[/dim] {json_output}")
+        raise typer.Exit(0)
+
+    outcomes = asyncio.run(_run_cases_async(cases, verbose=verbose, timeout_seconds=timeout_seconds))
 
     table = Table(title="Eval Summary", title_style="bold sky_blue1", show_header=True, header_style="bold")
     table.add_column("Case", overflow="fold")
@@ -255,6 +393,10 @@ def main(
     if failed:
         summary += f", [red]{failed} failed[/red]"
     console.print(f"\n{summary}")
+
+    if json_output is not None:
+        _write_json_output(json_output, outcomes)
+        console.print(f"[dim]json output:[/dim] {json_output}")
 
     for o in outcomes:
         if o.error:

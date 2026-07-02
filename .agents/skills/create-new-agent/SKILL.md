@@ -7,7 +7,7 @@ description: Add a new agent to this AgentOS. Runs guided discovery or takes a c
 
 > _**Coding-agent workflow** — a `/slash-command` your coding agent (Claude Code, Codex, others) runs while developing this repo. Invoke it by name (e.g. `/create-new-agent`) or describe the task and it triggers automatically._
 
-You are creating a new agent in this AgentOS. The user already has the platform running locally on `http://localhost:8000` (`RUNTIME_ENV=dev`). Uvicorn hot-reloads on edits inside an existing module, but **registering a new agent module requires a container restart** — see Step 6.
+You are creating a new agent in this AgentOS. The user already has the platform running locally on `http://localhost:8000` (`RUNTIME_ENV=dev`). Compose runs uvicorn with a scoped `--reload`, so code edits are picked up automatically; Step 6 covers when to restart instead.
 
 ## 0. Preconditions
 
@@ -76,10 +76,11 @@ Don't guess any of the four. Skip this step entirely if the agent is chat-only w
 
 ## 3. Generate the agent file
 
-Create `agents/<slug>.py` (replacing `-` with `_` for the filename: `agents/linear_agent.py`). Follow the pattern of one of the two reference agents:
+Create `agents/<slug>.py` (replacing `-` with `_` for the filename: `agents/linear_agent.py`). Follow the closest reference pattern:
 
 - **Direct tools** → mirror [`agents/web_search.py`](../../../agents/web_search.py).
 - **Context provider** → mirror [`agents/code_search.py`](../../../agents/code_search.py).
+- **Studio builder** → mirror [`agents/agent_builder.py`](../../../agents/agent_builder.py) when the agent should create or refine AgentOS components through StudioTools.
 
 Required structure:
 
@@ -129,7 +130,7 @@ from agents.<slug_underscore> import <slug_underscore>
 
 agent_os = AgentOS(
     ...
-    agents=[web_search, code_search, <slug_underscore>],
+    agents=[code_search, web_search, agent_builder, <slug_underscore>],
     ...
 )
 ```
@@ -149,7 +150,7 @@ chat:
 
 ## 6. Reload the container
 
-After Step 4, **always restart the container** — uvicorn's hot-reload doesn't reliably pick up newly registered modules.
+Compose runs uvicorn with a scoped `--reload`, so the new agent file and its `app/main.py` registration are picked up automatically within a couple of seconds. Restarting is the deterministic option when you don't want to race the reload:
 
 - **No new pip deps** (the common case):
 

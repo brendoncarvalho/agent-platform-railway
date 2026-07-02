@@ -1,7 +1,7 @@
 [project]
 name = "agent-platform"
 version = "1.0.0"
-description = "Agent platform with Postgres and AgentOS."
+description = "Self-driving agent platform built using Agno."
 requires-python = ">=3.12,<4"
 readme = "README.md"
 license-files = ["LICENSE"]
@@ -15,6 +15,7 @@ dependencies = [
   "parallel-web",
   "pgvector",
   "psycopg[binary]",
+  "pyyaml",
   "sqlalchemy",
 ]
 

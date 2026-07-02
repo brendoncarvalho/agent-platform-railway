@@ -2,9 +2,9 @@
 Database Session
 ================
 
-PostgreSQL connection helpers.
-``get_postgres_db()`` for agent storage backed by Postgres.
-``create_knowledge()`` for agent knowledge backed by PgVector.
+PostgreSQL connection helpers. Use:
+- get_postgres_db() for agent storage backed by Postgres.
+- create_knowledge() for agent knowledge backed by PgVector.
 """
 
 from functools import lru_cache
