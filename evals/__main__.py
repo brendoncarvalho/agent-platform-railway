@@ -9,12 +9,10 @@ python -m evals --json-output out.json  # write machine-readable results
 python -m evals -v                      # stream the agent's run with full panels
 
 Each case runs the agent once, then optionally checks the response with
-`AgentAsJudgeEval` (when `criteria` is set) and `ReliabilityEval` (when
-`expected_tool_calls` is set).
+`AgentAsJudgeEval` (when `criteria` is set) and
+`ReliabilityEval` (when `expected_tool_calls` is set).
 
 Both log to Postgres through `eval_db`. Connect your AgentOS at os.agno.com to see history.
-
-Exit 0 on all-pass, non-zero on any failure or error.
 """
 
 # Hydrate os.environ from .env before any module that reads env at import time
@@ -268,9 +266,9 @@ def _case_matches(case: Case, *, case_name: str | None, profile: str | None) -> 
     return True
 
 
-def _write_json_output(path: Path, outcomes: list[CaseOutcome]) -> None:
+def _build_payload(outcomes: list[CaseOutcome]) -> dict:
     passed = sum(1 for outcome in outcomes if outcome.passed)
-    payload = {
+    return {
         "summary": {
             "total": len(outcomes),
             "passed": passed,
@@ -291,6 +289,26 @@ def _write_json_output(path: Path, outcomes: list[CaseOutcome]) -> None:
             for outcome in outcomes
         ],
     }
+
+
+async def run_profile(profile: str | None = None, case_name: str | None = None, default_timeout: int = 120) -> dict:
+    """Run the selected cases in-process and return the results payload.
+
+    Embedding entrypoint (used by the run-evals workflow) — same selection and
+    payload shape as the CLI, with the console UI suppressed.
+    """
+    cases = [c for c in CASES if _case_matches(c, case_name=case_name, profile=profile)]
+    was_quiet = console.quiet
+    console.quiet = True
+    try:
+        outcomes = await _run_cases_async(cases, verbose=False, timeout_seconds=default_timeout)
+    finally:
+        console.quiet = was_quiet
+    return _build_payload(outcomes)
+
+
+def _write_json_output(path: Path, outcomes: list[CaseOutcome]) -> None:
+    payload = _build_payload(outcomes)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 

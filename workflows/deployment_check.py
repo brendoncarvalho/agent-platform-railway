@@ -102,12 +102,12 @@ def _check_reference_components() -> CheckResult:
         from agents.code_search import code_search
         from agents.web_search import web_search
         from app.registry import registry
-        from workflows.eval_regression import eval_regression
+        from workflows.run_evals import run_evals
     except Exception as exc:
         return _fail("Components", f"Could not import reference components: {exc}")
 
     agent_ids = sorted([agent_id for agent_id in (web_search.id, code_search.id, agent_builder.id) if agent_id])
-    workflow_ids = sorted([workflow_id for workflow_id in (deployment_check.id, eval_regression.id) if workflow_id])
+    workflow_ids = sorted([workflow_id for workflow_id in (deployment_check.id, run_evals.id) if workflow_id])
     return _pass(
         "Components",
         "Reference components import cleanly: "
@@ -118,14 +118,14 @@ def _check_reference_components() -> CheckResult:
 
 def _check_schedule_flag() -> CheckResult:
     deploy = getenv("ENABLE_DEPLOY_CHECK", "True") == "True"
-    evals = getenv("ENABLE_EVAL_REGRESSION", "False") == "True"
+    evals = getenv("ENABLE_SCHEDULED_EVALS", "False") == "True"
     if deploy and evals:
-        return _pass("Schedule", "Deployment-check and eval-regression crons are armed.")
+        return _pass("Schedule", "Deployment-check and run-evals crons are armed.")
     if deploy:
-        return _pass("Schedule", "Deployment-check cron is armed; eval-regression cron is opt-in and disabled.")
+        return _pass("Schedule", "Deployment-check cron is armed; run-evals cron is opt-in and disabled.")
     if evals:
-        return _pass("Schedule", "Eval-regression cron is armed; deployment-check cron is disabled.")
-    return _pass("Schedule", "Deployment-check and eval-regression crons are disabled; run endpoints remain available.")
+        return _pass("Schedule", "Run-evals cron is armed; deployment-check cron is disabled.")
+    return _pass("Schedule", "Deployment-check and run-evals crons are disabled; run endpoints remain available.")
 
 
 def _format_report(checks: list[CheckResult]) -> str:

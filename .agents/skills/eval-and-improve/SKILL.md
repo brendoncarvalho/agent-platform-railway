@@ -104,7 +104,7 @@ Run `python -m evals --case <name>` to confirm it passes against the current age
 
 Every case logs to Postgres via `db=eval_db`. Connect your AgentOS at [os.agno.com](https://os.agno.com) and view eval history — useful for catching slow drift on a weekly cron.
 
-For the template's opt-in scheduled check, see [`workflows/eval_regression.py`](../../../workflows/eval_regression.py). It runs `python -m evals --profile ${EVAL_REGRESSION_PROFILE:-smoke}` and writes JSON output for a compact workflow report. Its cron is disabled by default; set `ENABLE_EVAL_REGRESSION=True` to enable it.
+For the template's opt-in scheduled check, see [`workflows/run_evals.py`](../../../workflows/run_evals.py). It runs the `${EVALS_PROFILE:-smoke}` profile in-process (no subprocess) and returns a compact markdown report. Its cron is disabled by default; set `ENABLE_SCHEDULED_EVALS=True` to enable it.
 
 ---
 

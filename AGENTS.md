@@ -14,14 +14,14 @@ AgentOS  (app/main.py)
 ├── CodeSearch   (agents/code_search.py)  — WorkspaceContextProvider
 ├── Agent Builder (agents/agent_builder.py) — Agno docs MCP + StudioTools
 ├── DeployCheck  (workflows/deployment_check.py) — deterministic readiness workflow
-└── EvalRegression (workflows/eval_regression.py) — opt-in eval profile workflow
+└── RunEvals     (workflows/run_evals.py) — opt-in eval suite workflow
 ```
 
 Shared:
 - PostgreSQL + pgvector for sessions, memory, knowledge.
 - `app.settings.default_model()` returns `OpenAIResponses(id="gpt-5.5")` — bump the model in one place.
-- `app.registry.registry` exposes the safe Studio registry Agent Builder can use: Agno docs MCP, web search, reasoning tools, demo functions, the default model, the shared DB, and the reference agents (web-search, code-search).
-- Scheduler enabled by default (`scheduler=True`); `app/schedules.py` registers schedules from the lifespan. Deployment check runs daily **on** by default — set `ENABLE_DEPLOY_CHECK=False` to disable it. Eval regression is **off** by default — set `ENABLE_EVAL_REGRESSION=True` to schedule it.
+- `app.registry.registry` exposes the safe Studio registry Agent Builder can use: Agno docs MCP, web search, reasoning tools, utility functions, the default model, the shared DB, and the reference agents (web-search, code-search).
+- Scheduler enabled by default (`scheduler=True`); `app/schedules.py` registers schedules from the lifespan. Deployment check runs daily **on** by default — set `ENABLE_DEPLOY_CHECK=False` to disable it. Scheduled evals are **off** by default — set `ENABLE_SCHEDULED_EVALS=True` to schedule the run-evals workflow.
 - Slack interface lights up automatically when both `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` are set.
 - JWT auth on whenever `RUNTIME_ENV == "prd"` (so production deploys are gated by default).
 
@@ -31,13 +31,13 @@ Shared:
 |------|---------|
 | [`app/main.py`](app/main.py) | AgentOS entrypoint — lifespan hook, conditional Slack, JWT gate. |
 | [`app/settings.py`](app/settings.py) | `default_model()` factory. |
-| [`app/registry.py`](app/registry.py) | Safe Studio registry used by Agent Builder — docs MCP, web tools, demo functions, reference agents. |
+| [`app/registry.py`](app/registry.py) | Safe Studio registry used by Agent Builder — docs MCP, web tools, utility functions, reference agents. |
 | [`app/config.yaml`](app/config.yaml) | Quick prompts per agent (keyed by agent `id`). |
 | [`agents/web_search.py`](agents/web_search.py) | Reference agent — direct tools (Parallel SDK or MCP). |
 | [`agents/code_search.py`](agents/code_search.py) | Reference agent — context provider. |
 | [`agents/agent_builder.py`](agents/agent_builder.py) | Reference agent — creates agents, teams, and workflows through StudioTools with HITL gates. |
 | [`workflows/deployment_check.py`](workflows/deployment_check.py) | Reference workflow — a deterministic `Step` that checks DB, auth, scheduler URL, Slack config, and component imports; imported into `app/main.py` and passed to `AgentOS(workflows=[...])`. |
-| [`workflows/eval_regression.py`](workflows/eval_regression.py) | Optional workflow — runs a bounded eval profile and returns a compact report. Registered but not scheduled unless `ENABLE_EVAL_REGRESSION=True`. |
+| [`workflows/run_evals.py`](workflows/run_evals.py) | Optional workflow — runs an eval profile and returns a compact report. Registered but not scheduled unless `ENABLE_SCHEDULED_EVALS=True`. |
 | [`app/schedules.py`](app/schedules.py) | `register_schedules()` — cron registration, called from the lifespan (idempotent, fail-soft). |
 | [`db/session.py`](db/session.py) | `get_postgres_db()`, `create_knowledge()`. |
 | [`db/url.py`](db/url.py) | Builds the database URL from env. |
@@ -58,7 +58,7 @@ cp example.env .env
 docker compose up -d --build
 ```
 
-`compose.yaml` sets `RUNTIME_ENV=dev`, `AGNO_DEBUG=True`, and `WAIT_FOR_DB=True` so JWT is off and the API blocks on the DB before serving. Because this template uses MCPTools inside AgentOS, do not run uvicorn with `--reload`; restart `agentos-api` after code changes.
+`compose.yaml` sets `RUNTIME_ENV=dev`, `AGNO_DEBUG=True`, and `WAIT_FOR_DB=True` so JWT is off and the API blocks on the DB before serving. It runs uvicorn with a scoped `--reload` (watching `agents/`, `app/`, `db/`, `evals/`, `workflows/`), so code edits hot-reload in a second or two. Restart `agentos-api` after dependency or env changes, or whenever you want a guaranteed-clean state.
 
 ### Format & Validate
 
@@ -140,7 +140,7 @@ Knowledge bases use PgVector with `SearchType.hybrid` and `text-embedding-3-smal
 Two options:
 
 1. **Hand it to Claude Code** — run the `/create-new-agent` skill (or just ask to "create a new agent") in a Claude Code session pointed at this repo. Claude asks the user what the agent should do, generates the file, registers it, smoke-tests it. See [Working with coding agents](#working-with-coding-agents).
-2. **Do it manually** — create `agents/<slug>.py`, register in `app/main.py`, add prompts to `app/config.yaml`. Then `docker compose restart agentos-api`. This template uses MCPTools inside AgentOS, so do not rely on uvicorn reload.
+2. **Do it manually** — create `agents/<slug>.py`, register in `app/main.py`, add prompts to `app/config.yaml`. The scoped uvicorn reload picks the changes up automatically; restart `agentos-api` if you changed dependencies or env.
 
 ## Iterating on an agent
 
@@ -192,10 +192,10 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 | `AGENTOS_URL` | no | `http://127.0.0.1:8000` | Scheduler base URL — cron triggers reach AgentOS over this. `scripts/railway/up.sh` auto-sets it to the created Railway domain (and writes it back into your env file); only set it by hand for custom domains or tunnels. Left at the localhost default in prod, scheduled jobs silently never fire. |
 | `INTERNAL_SERVICE_TOKEN` | no | auto-generated | Token the scheduler uses to call back into AgentOS. Auto-generated per process when unset — fine for a single replica. Running more than one replica, set one shared value everywhere, or scheduled runs 401 whenever a callback lands on a replica that didn't fire them. |
 | `ENABLE_DEPLOY_CHECK` | no | `True` | The reference deployment-check cron (`app/schedules.py`) runs daily by default. Set `False` to disable; the workflow stays runnable on demand regardless. |
-| `ENABLE_EVAL_REGRESSION` | no | `False` | If `True`, schedules the eval-regression workflow. Off by default because it uses model calls. |
-| `EVAL_REGRESSION_PROFILE` | no | `smoke` | Eval profile used by the scheduled eval-regression workflow. |
-| `EVAL_REGRESSION_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for eval-regression runs; applies only to cases that don't set their own `timeout_seconds`. |
-| `EVAL_REGRESSION_SUITE_TIMEOUT_SECONDS` | no | `600` | Whole-suite timeout for eval-regression runs. The default fits the `smoke` profile; raise it (e.g. `900`) when scheduling `release`. |
+| `ENABLE_SCHEDULED_EVALS` | no | `False` | If `True`, schedules the run-evals workflow daily. Off by default because it uses model calls. |
+| `EVALS_PROFILE` | no | `smoke` | Eval profile used by the run-evals workflow. |
+| `EVALS_CASE_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for run-evals runs; applies only to cases that don't set their own `timeout_seconds`. |
+| `EVALS_SUITE_TIMEOUT_SECONDS` | no | `600` | Whole-suite timeout for run-evals runs. The default fits the `smoke` profile; raise it (e.g. `900`) when scheduling `release`. |
 | `PARALLEL_API_KEY` | no | — | Authenticates the WebSearch Agent's Parallel SDK / MCP connection (raises rate ceiling). |
 | `SLACK_BOT_TOKEN` | no | — | Bot token. Set with signing secret to enable the Slack interface. |
 | `SLACK_SIGNING_SECRET` | no | — | Signing secret. Both it and the bot token must be set for the interface to load. |
@@ -215,7 +215,7 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 
 **Reference examples.** [`workflows/deployment_check.py`](workflows/deployment_check.py) is a one-step, **deterministic** workflow — no LLM, no token cost — that returns a deployment readiness report. It checks DB connectivity and tables, JWT config, scheduler URL, Slack env consistency, schedule flags, and reference component imports. [`app/schedules.py`](app/schedules.py) registers a daily cron that hits its endpoint (`POST /workflows/deployment-check/runs`). Because it's deterministic and free, the cron runs **on** by default (daily at 13:00 UTC); disable it with `ENABLE_DEPLOY_CHECK=False`.
 
-[`workflows/eval_regression.py`](workflows/eval_regression.py) runs a bounded eval profile and returns a compact report. It is registered in AgentOS for on-demand use, but its cron is **off** by default because it uses model calls. Set `ENABLE_EVAL_REGRESSION=True` to schedule the smoke profile daily at 14:00 UTC.
+[`workflows/run_evals.py`](workflows/run_evals.py) runs an eval profile and returns a compact report. It is registered in AgentOS for on-demand use, but its cron is **off** by default because it uses model calls. Set `ENABLE_SCHEDULED_EVALS=True` to schedule the smoke profile daily at 14:00 UTC.
 
 To add your own: define a `Workflow` in `workflows/`, import it into [`app/main.py`](app/main.py) and add it to `AgentOS(workflows=[...])`, and register a schedule for it in `register_schedules()`. Other common uses: **maintenance** (purge old sessions, vacuum tables), **periodic re-evaluation** (run `python -m evals` weekly to catch regressions).
 
@@ -223,7 +223,7 @@ See [agno scheduler docs](https://docs.agno.com/agent-os/scheduler) for the cron
 
 ## Optional Platform Steward
 
-Keep this template light by default. For production operations, add a Platform Steward agent or workflow as an opt-in layer. It should read deployment-check output, eval-regression reports, traces, logs, and recent diffs; diagnose likely causes; then recommend or prepare a fix behind approval. Do not register it by default in this template.
+Keep this template light by default. For production operations, add a Platform Steward agent or workflow as an opt-in layer. It should read deployment-check output, eval reports, traces, logs, and recent diffs; diagnose likely causes; then recommend or prepare a fix behind approval. Do not register it by default in this template.
 
 Good first tools:
 

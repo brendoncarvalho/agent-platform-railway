@@ -7,7 +7,7 @@ description: Add a new agent to this AgentOS. Runs guided discovery or takes a c
 
 > _**Coding-agent workflow** — a `/slash-command` your coding agent (Claude Code, Codex, others) runs while developing this repo. Invoke it by name (e.g. `/create-new-agent`) or describe the task and it triggers automatically._
 
-You are creating a new agent in this AgentOS. The user already has the platform running locally on `http://localhost:8000` (`RUNTIME_ENV=dev`). This template uses MCPTools inside AgentOS, so uvicorn reload is disabled; **code changes require a container restart** — see Step 6.
+You are creating a new agent in this AgentOS. The user already has the platform running locally on `http://localhost:8000` (`RUNTIME_ENV=dev`). Compose runs uvicorn with a scoped `--reload`, so code edits are picked up automatically; Step 6 covers when to restart instead.
 
 ## 0. Preconditions
 
@@ -148,9 +148,9 @@ chat:
       - "Third example prompt"
 ```
 
-## 6. Restart the container
+## 6. Reload the container
 
-After Step 4, **always restart the container**. Do not rely on uvicorn reload in this repo.
+Compose runs uvicorn with a scoped `--reload`, so the new agent file and its `app/main.py` registration are picked up automatically within a couple of seconds. Restarting is the deterministic option when you don't want to race the reload:
 
 - **No new pip deps** (the common case):
 

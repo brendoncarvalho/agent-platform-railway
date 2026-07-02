@@ -11,7 +11,7 @@ You are recursively improving a target agent **autonomously**. **No user-supplie
 
 This is the autonomous half of the iteration loop. The user-driven half lives in [`extend-agent`](../extend-agent/SKILL.md) (add a tool, add a capability, refine the prompt, fix a specific bug). Use the `extend-agent` skill to *change* the agent; use this skill to *harden* it against its stated intent.
 
-The platform is on `http://localhost:8000` (`RUNTIME_ENV=dev`). This template uses MCPTools inside AgentOS, so uvicorn reload is disabled; restart `agentos-api` after edits before re-probing.
+The platform is on `http://localhost:8000` (`RUNTIME_ENV=dev`). Compose runs uvicorn with a scoped `--reload`, so edits are picked up automatically; the restart in Step 6 is the deterministic way to avoid racing the reload before re-probing.
 
 This is a **single-pass** loop. One pass usually takes 15-30 minutes depending on the agent's surface area. Re-run if behavior still drifts.
 

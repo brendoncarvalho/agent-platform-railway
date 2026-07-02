@@ -2,16 +2,10 @@
 .env Loader
 ===========
 
-Hydrates ``os.environ`` from ``<repo>/.env`` without pulling in
-``python-dotenv``. Call ``load_dotenv()`` before importing modules that
-read environment variables at import time. Pre-existing values in the
-shell take precedence — the file only fills in what's missing.
-
-Unquoted values have trailing `` # comment`` text stripped; quote a value
-to keep a literal ``#`` preceded by whitespace.
+Hydrates `os.environ` from `<repo>/.env` without pulling in `python-dotenv`.
+Call `load_dotenv()` before importing modules that read environment variables at import time.
+Pre-existing values in the shell take precedence — the file only fills in what's missing.
 """
-
-from __future__ import annotations
 
 import os
 import re
@@ -22,7 +16,7 @@ ENV_FILE = REPO_ROOT / ".env"
 
 
 def load_dotenv(path: Path = ENV_FILE) -> None:
-    """Load ``path`` into ``os.environ``. Existing values are not overwritten."""
+    """Load `path` into `os.environ`. Existing values are not overwritten."""
     if not path.exists():
         return
     for line in path.read_text().splitlines():

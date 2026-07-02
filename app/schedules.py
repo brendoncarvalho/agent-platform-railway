@@ -14,7 +14,7 @@ from db import get_postgres_db
 def register_schedules() -> None:
     """Register schedules (idempotent and fail-soft).
 
-    The deployment check runs daily by default. Eval regression is opt-in because it uses model calls.
+    The deployment check runs daily by default. Scheduled evals are opt-in because they use model calls.
     """
     try:
         manager = ScheduleManager(get_postgres_db())
@@ -39,19 +39,19 @@ def register_schedules() -> None:
     else:
         log_info("schedules: deployment-check disabled (ENABLE_DEPLOY_CHECK=False)")
 
-    if getenv("ENABLE_EVAL_REGRESSION", "False") == "True":
+    if getenv("ENABLE_SCHEDULED_EVALS", "False") == "True":
         try:
             manager.create(
-                name="eval-regression",
+                name="run-evals",
                 cron="0 14 * * *",  # 14:00 UTC daily
-                endpoint="/workflows/eval-regression/runs",
-                payload={"message": "Scheduled eval regression."},
-                description="Daily: run the eval regression suite.",
+                endpoint="/workflows/run-evals/runs",
+                payload={"message": "Scheduled eval run."},
+                description="Daily: run the eval suite and report regressions.",
                 if_exists="update",
             )
         except Exception as exc:
-            log_warning(f"schedules: could not register 'eval-regression': {exc}")
+            log_warning(f"schedules: could not register 'run-evals': {exc}")
         else:
-            log_info("schedules: registered 'eval-regression'")
+            log_info("schedules: registered 'run-evals'")
     else:
-        log_info("schedules: eval-regression disabled (ENABLE_EVAL_REGRESSION=True to enable)")
+        log_info("schedules: run-evals disabled (ENABLE_SCHEDULED_EVALS=True to enable)")

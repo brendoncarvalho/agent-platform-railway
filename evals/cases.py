@@ -25,7 +25,7 @@ from agents.code_search import code_search
 from agents.web_search import web_search
 from db import get_postgres_db
 
-# Single eval DB instance — every case logs through it.
+# Eval DB instance (where results are stored)
 eval_db = get_postgres_db()
 
 
@@ -45,10 +45,10 @@ class Case:
     profiles: tuple[str, ...] = ("release",)
     timeout_seconds: int | None = None
 
-    # Judge check (LLM judge against a rubric, binary pass/fail). Set ``criteria`` to enable.
+    # Judge check (LLM judge against a rubric, binary pass/fail). Set `criteria` to enable.
     criteria: str | None = None
 
-    # Reliability check (tool-call assertion). Set ``expected_tool_calls`` to enable.
+    # Reliability check (tool-call assertion). Set `expected_tool_calls` to enable.
     expected_tool_calls: tuple[str, ...] | None = None
     allow_additional_tool_calls: bool = True
 
@@ -90,8 +90,8 @@ CASES: tuple[Case, ...] = (
         criteria=(
             "Answers from this repository's code (not generic AgentOS documentation): names the three "
             "registered agents (`web-search`, `code-search`, `agent-builder`), the `deployment-check` and "
-            "`eval-regression` workflows, and the scheduler setup (daily deployment-check cron on by "
-            "default, eval-regression opt-in)."
+            "`run-evals` workflows, and the scheduler setup (daily deployment-check cron on by "
+            "default, scheduled evals opt-in)."
         ),
         expected_tool_calls=("query_my_codebase",),
     ),
@@ -105,14 +105,14 @@ CASES: tuple[Case, ...] = (
         timeout_seconds=180,
         criteria=(
             "Provides a compact, actionable first-run onboarding tour grounded in this repository. "
-            "Leads with the self-driving coding-agent lifecycle in `.agents/skills/`, including all "
+            "Covers the self-driving coding-agent lifecycle in `.agents/skills/`, naming all "
             "five skills: `/create-new-agent`, `/extend-agent`, `/improve-agent`, "
             "`/eval-and-improve`, and `/review-and-improve`. Also mentions that `agent-builder` can "
             "create agentic components from the UI using the safe Studio registry. Briefly mentions "
             "the registered agents, quick prompts, the deployment-check workflow or scheduler, "
-            "persistence, and Slack/JWT gates. Includes concrete next prompts or commands. Avoids an "
-            "exhaustive file walkthrough, large tables, long code snippets, and per-skill step-by-step "
-            "procedures. Does not answer as generic AgentOS documentation."
+            "persistence, and Slack/JWT gates. Includes concrete next prompts or commands. Stays "
+            "compact — no exhaustive file-by-file walkthrough or long code snippets. Does not answer "
+            "as generic AgentOS documentation."
         ),
         expected_tool_calls=("query_my_codebase",),
     ),

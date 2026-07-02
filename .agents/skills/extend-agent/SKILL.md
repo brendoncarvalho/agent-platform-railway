@@ -11,7 +11,7 @@ You are recursively extending a target agent **with the user in the driver's sea
 
 This is the user-driven half of the iteration loop. The autonomous half lives in [`improve-agent`](../improve-agent/SKILL.md) — Claude derives probes from the agent's `INSTRUCTIONS` and hardens behavior with no user input. Use this prompt to *change* the agent (add tools, add capabilities, refine the prompt, fix a known bug). Run the `improve-agent` skill afterward to confirm nothing else regressed.
 
-The platform is on `http://localhost:8000` (`RUNTIME_ENV=dev`). This template uses MCPTools inside AgentOS, so uvicorn reload is disabled; code changes require a container restart — Step 5 covers this.
+The platform is on `http://localhost:8000` (`RUNTIME_ENV=dev`). Compose runs uvicorn with a scoped `--reload`, so code edits are picked up automatically; restart `agentos-api` for dependency changes or a guaranteed-clean state — Step 5 covers this.
 
 ## 0. Preconditions
 

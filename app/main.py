@@ -17,7 +17,7 @@ from app.registry import registry
 from app.schedules import register_schedules
 from db import get_postgres_db
 from workflows.deployment_check import deployment_check
-from workflows.eval_regression import eval_regression
+from workflows.run_evals import run_evals
 
 # ---------------------------------------------------------------------------
 # Environment
@@ -76,7 +76,7 @@ agent_os = AgentOS(
     lifespan=lifespan,
     db=get_postgres_db(),
     agents=[agent_builder, code_search, web_search],
-    workflows=[deployment_check, eval_regression],
+    workflows=[deployment_check, run_evals],
     interfaces=interfaces,
     registry=registry,
     config=str(Path(__file__).parent / "config.yaml"),
