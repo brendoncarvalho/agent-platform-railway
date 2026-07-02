@@ -49,11 +49,10 @@ if SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET:
 
 
 # ---------------------------------------------------------------------------
-# Lifespan — extension hook for app-level startup / teardown.
+# Lifespan — app-level startup / teardown.
 #
 # AgentOS handles the MCP lifecycle for agent-attached tools (connect on
-# startup, close on shutdown). Keep this hook in place so you can plug in
-# your own setup as needed.
+# startup, close on shutdown). Keep this hook in place to plug in your own setup.
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app):  # type: ignore[no-untyped-def]
@@ -83,10 +82,6 @@ agent_os = AgentOS(
     tracing=True,
     scheduler=True,
     scheduler_base_url=scheduler_base_url,
-    # Auto-generated per process when unset — fine for one replica. Set it to a
-    # shared value when running multiple replicas so scheduler callbacks
-    # authenticate no matter which replica they land on.
-    internal_service_token=getenv("INTERNAL_SERVICE_TOKEN") or None,
     authorization=runtime_env == "prd",
     lifespan=lifespan,
     db=get_postgres_db(),

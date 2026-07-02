@@ -15,9 +15,6 @@ def register_schedules() -> None:
     """Register schedules (idempotent and fail-soft).
 
     The deployment check runs daily by default. Eval regression is opt-in because it uses model calls.
-
-    Note: ``if_exists="update"`` recomputes ``next_run_at`` on every boot, so a
-    redeploy that lands inside a schedule's due window can skip that day's fire.
     """
     try:
         manager = ScheduleManager(get_postgres_db())
@@ -32,7 +29,7 @@ def register_schedules() -> None:
                 cron="0 13 * * *",  # 13:00 UTC daily
                 endpoint="/workflows/deployment-check/runs",
                 payload={"message": "Scheduled deployment check."},
-                description="Daily: verify deployment wiring and readiness.",
+                description="Daily: verify platform wiring and readiness.",
                 if_exists="update",
             )
         except Exception as exc:
@@ -49,7 +46,7 @@ def register_schedules() -> None:
                 cron="0 14 * * *",  # 14:00 UTC daily
                 endpoint="/workflows/eval-regression/runs",
                 payload={"message": "Scheduled eval regression."},
-                description="Daily: run the configured eval regression profile.",
+                description="Daily: run the eval regression suite.",
                 if_exists="update",
             )
         except Exception as exc:
