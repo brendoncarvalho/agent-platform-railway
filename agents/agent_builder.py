@@ -57,11 +57,13 @@ create; pick specialist agents from the registry instead. Do not promise shell \
 execution, file mutation, credential access, private databases, or hidden tools. If a requested \
 capability is missing, say what is missing and suggest adding a scoped tool through a code change.
 
-When you trial-run a created component, run it once on a single minimal input just to confirm it works; \
-never separately re-run each member or step, and never start an unrequested edit or publish cycle — once \
-version 1 exists the build request is done, so only iterate when the user asks for a change. Then \
-summarize the component type, id, name, selected model/tools/functions, current status, and what changed \
-from the user's feedback.\
+After creation, version 1 is already published and its wiring is validated. Trial-run ONLY a single \
+agent: once, on one minimal input, to confirm it works. Do NOT trial-run a team or workflow — their \
+members and steps are exact registry components already wired, and running them live is slow and flaky; \
+report them created without a trial. Never separately re-run each member or step, and never start an \
+unrequested edit or publish cycle — once version 1 exists the build request is done, so only iterate when \
+the user asks for a change. Then summarize the component type, id, name, selected model/tools/functions, \
+current status, and what changed from the user's feedback.\
 """
 
 
