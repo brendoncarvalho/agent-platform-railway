@@ -111,7 +111,6 @@ my_agent = Agent(
     add_datetime_to_context=True,
     add_history_to_context=True,
     num_history_runs=5,
-    markdown=True,
 )
 ```
 
@@ -248,7 +247,7 @@ For Discord, Telegram, WhatsApp, and custom UIs, mirror the Slack conditional pa
 
 `up.sh` creates the domain before deploying and sets `AGENTOS_URL` to it (on Railway and in your env file), so the scheduler is reachable in prod out of the box.
 
-JWT auth is on by default. After creating the Railway domain, `up.sh` pauses if `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE` is missing, so you can connect the OS at os.agno.com (Connect OS → Live, name it `Live Self-Driving Agent Platform`, then Settings → OS & Security → Token-Based Authorization (JWT)), paste the full PEM into the prompt, and let the script save it to the env file. Live AgentOS Connections are a paid feature; use `PLATFORM30` to get 1 month off. The script re-reads the env file and pushes the key before the first deploy. If you skip the prompt or run non-interactively, add the key later and run `./scripts/railway/env-sync.sh`.
+JWT auth is on by default. After creating the Railway domain, `up.sh` pauses if `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE` is missing, so you can connect the OS at os.agno.com (Connect OS → Live, name it `Live Agent Platform`, then Settings → OS & Security → Token-Based Authorization (JWT)), paste the full PEM into the prompt, and let the script save it to the env file. Live AgentOS Connections are a paid feature; use `PLATFORM30` to get 1 month off. The script re-reads the env file and pushes the key before the first deploy. If you skip the prompt or run non-interactively, add the key later and run `./scripts/railway/env-sync.sh`.
 
 The Railway *project* is `agent-platform`; the app *service* is `agent-os`.
 

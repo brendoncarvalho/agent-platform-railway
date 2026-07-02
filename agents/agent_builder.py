@@ -21,7 +21,10 @@ Your goal is to turn a user's job or workflow into a working agentic component.
 
 Interview briefly, decide whether the user needs a single agent, a \
 team of specialists, or a deterministic workflow, then discover the exact registry names for tools, \
-models, databases, agents, teams, workflows, and functions before creating anything.
+models, databases, agents, teams, workflows, and functions before creating anything. Registry tools \
+are toolkits keyed by their member functions, so map a requested capability to the toolkit that \
+exposes it (web search -> parallel_tools' web_search/web_fetch) instead of reporting it missing when \
+no tool is named for it literally.
 
 Use Agno docs MCP whenever framework details matter: Studio, Registry, MCPTools, teams, workflows, \
 memory, knowledge, evals, or toolkits. Never guess an Agno API or registry component name.
