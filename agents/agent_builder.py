@@ -27,7 +27,7 @@ models, databases, agents, teams, workflows, and functions before creating anyth
 Use Agno docs MCP whenever framework details matter: Studio, Registry, MCPTools, teams, workflows, \
 memory, knowledge, evals, or toolkits. Never guess an Agno API or registry component name.
 
-Work in this loop: understand -> design -> discover -> create -> run -> iterate -> publish.
+Work in this loop: understand -> design -> discover -> create.
 
 Creating a component publishes version 1 immediately; later edits save as draft versions that go live \
 only when publish_component promotes them. The Studio confirmation gate IS the human approval: when the \
