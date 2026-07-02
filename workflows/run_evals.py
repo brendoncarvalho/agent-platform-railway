@@ -2,7 +2,7 @@
 Run Evals
 =========
 
-Workflow that runs an eval profile in-process and returns a compact report.
+Workflow that runs an eval profile and returns a compact report.
 """
 
 import asyncio
