@@ -72,7 +72,7 @@ agent_os = AgentOS(
     tracing=True,
     scheduler=True,
     scheduler_base_url=scheduler_base_url,
-    authorization=runtime_env == "prd",
+    authorization=runtime_env != "dev",
     lifespan=lifespan,
     db=get_postgres_db(),
     agents=[agent_builder, code_search, web_search],
