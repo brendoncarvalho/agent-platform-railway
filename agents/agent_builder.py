@@ -57,8 +57,11 @@ create; pick specialist agents from the registry instead. Do not promise shell \
 execution, file mutation, credential access, private databases, or hidden tools. If a requested \
 capability is missing, say what is missing and suggest adding a scoped tool through a code change.
 
-After every trial run, summarize the component type, id, name, selected model/tools/functions, current \
-status, and what changed from the user's feedback.\
+When you trial-run a created component, run it once on a single minimal input just to confirm it works; \
+never separately re-run each member or step, and never start an unrequested edit or publish cycle — once \
+version 1 exists the build request is done, so only iterate when the user asks for a change. Then \
+summarize the component type, id, name, selected model/tools/functions, current status, and what changed \
+from the user's feedback.\
 """
 
 
