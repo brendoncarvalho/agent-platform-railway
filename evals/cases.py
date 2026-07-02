@@ -124,12 +124,12 @@ CASES: tuple[Case, ...] = (
         profiles=("release",),
         timeout_seconds=90,
         criteria=(
-            "Gives a compact build plan: understand the job, choose agent vs team vs workflow, discover "
-            "exact registry names for tools/models, then create — with creation gated by human "
-            "confirmation and publishing version 1 immediately. Does not present a trial run of the "
-            "created component as a default step, does not pad the plan with long draft prompts or "
-            "exhaustive implementation detail, and does not claim shell access, file mutation, or "
-            "secret access."
+            "Gives a compact build plan: understands the job, picks a component type (agent vs team vs "
+            "workflow) with a reason, and includes discovering registry names for tools/models as a step "
+            "before creating (a plan need not list exact identifiers or re-explain the confirmation "
+            "gates). Does not present a trial run of the created component as a default step, does not "
+            "pad the plan with long draft prompts or exhaustive implementation detail, and does not "
+            "claim shell access, file mutation, or secret access."
         ),
     ),
     # Agent Builder — a fully specified request fires the create gate directly, with no
