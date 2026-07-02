@@ -8,7 +8,6 @@ from os import getenv
 from pathlib import Path
 
 from agno.os import AgentOS
-from agno.tools.mcp import MCPTools
 from agno.utils.log import log_info
 
 from agents.agent_builder import agent_builder
@@ -51,26 +50,17 @@ if SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET:
 # ---------------------------------------------------------------------------
 # Lifespan — app-level startup / teardown.
 #
-# AgentOS handles the MCP lifecycle for agent-attached tools (connect on
-# startup, close on shutdown). Keep this hook in place to plug in your own setup.
+# AgentOS handles the MCP lifecycle (connect on startup, close on shutdown)
+# for agent-attached and registry tools. Keep this hook to plug in your own setup.
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app):  # type: ignore[no-untyped-def]
     log_info("AgentOS lifespan: startup")
     # Register schedules on startup. Idempotent and fail-soft.
     register_schedules()
-    # agno 2.6.20 only connects MCP tools attached to agents/teams/workflows;
-    # MCP toolkits that live only in the Studio registry stay unconnected, so
-    # components created through StudioTool would persist them with empty
-    # function sets. Connect them here until agno handles registry tools too.
-    registry_mcp_tools = [tool for tool in registry.tools or [] if isinstance(tool, MCPTools)]
-    for mcp_tool in registry_mcp_tools:
-        await mcp_tool.connect()
     try:
         yield
     finally:
-        for mcp_tool in registry_mcp_tools:
-            await mcp_tool.close()
         log_info("AgentOS lifespan: shutdown")
 
 

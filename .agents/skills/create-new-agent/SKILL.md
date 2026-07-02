@@ -80,7 +80,7 @@ Create `agents/<slug>.py` (replacing `-` with `_` for the filename: `agents/line
 
 - **Direct tools** → mirror [`agents/web_search.py`](../../../agents/web_search.py).
 - **Context provider** → mirror [`agents/code_search.py`](../../../agents/code_search.py).
-- **Studio builder** → mirror [`agents/agent_builder.py`](../../../agents/agent_builder.py) when the agent should create or refine AgentOS components through StudioTool.
+- **Studio builder** → mirror [`agents/agent_builder.py`](../../../agents/agent_builder.py) when the agent should create or refine AgentOS components through StudioTools.
 
 Required structure:
 

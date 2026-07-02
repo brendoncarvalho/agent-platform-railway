@@ -12,7 +12,7 @@ A self-driving agent platform built on [Agno](https://docs.agno.com), shipped as
 AgentOS  (app/main.py)
 ├── WebSearch    (agents/web_search.py)   — Parallel SDK or keyless MCPTools
 ├── CodeSearch   (agents/code_search.py)  — WorkspaceContextProvider
-├── Agent Builder (agents/agent_builder.py) — Agno docs MCP + StudioTool
+├── Agent Builder (agents/agent_builder.py) — Agno docs MCP + StudioTools
 ├── DeployCheck  (workflows/deployment_check.py) — deterministic readiness workflow
 └── EvalRegression (workflows/eval_regression.py) — opt-in eval profile workflow
 ```
@@ -37,7 +37,7 @@ Shared:
 | [`app/config.yaml`](app/config.yaml) | Quick prompts per agent (keyed by agent `id`). |
 | [`agents/web_search.py`](agents/web_search.py) | Reference agent — direct tools (Parallel SDK or MCP). |
 | [`agents/code_search.py`](agents/code_search.py) | Reference agent — context provider. |
-| [`agents/agent_builder.py`](agents/agent_builder.py) | Reference agent — creates agents, teams, and workflows through StudioTool with HITL gates. |
+| [`agents/agent_builder.py`](agents/agent_builder.py) | Reference agent — creates agents, teams, and workflows through StudioTools with HITL gates. |
 | [`workflows/deployment_check.py`](workflows/deployment_check.py) | Reference workflow — a deterministic `Step` that checks DB, auth, scheduler URL, Slack config, and component imports; imported into `app/main.py` and passed to `AgentOS(workflows=[...])`. |
 | [`workflows/eval_regression.py`](workflows/eval_regression.py) | Optional workflow — runs a bounded eval profile and returns a compact report. Registered but not scheduled unless `ENABLE_EVAL_REGRESSION=True`. |
 | [`app/schedules.py`](app/schedules.py) | `register_schedules()` — cron registration, called from the lifespan (idempotent, fail-soft). |
@@ -121,7 +121,7 @@ Three patterns to copy from:
 
 - **Direct tools** — see [`agents/web_search.py`](agents/web_search.py). The agent sees each tool individually. Best when the user knows which tools the agent needs.
 - **Context provider** — see [`agents/code_search.py`](agents/code_search.py). The agent sees one `query_<thing>` tool that hands off to a sub-agent. Best for one-source agents and when collapsing many tools into one keeps the model focused.
-- **Studio builder** — see [`agents/agent_builder.py`](agents/agent_builder.py). The agent sees StudioTool, a safe `Registry`, Agno docs MCP, and Studio confirmation gates. Best when the user should create or refine components from the AgentOS UI.
+- **Studio builder** — see [`agents/agent_builder.py`](agents/agent_builder.py). The agent sees StudioTools, a safe `Registry`, Agno docs MCP, and Studio confirmation gates. Best when the user should create or refine components from the AgentOS UI.
 
 ### Database
 

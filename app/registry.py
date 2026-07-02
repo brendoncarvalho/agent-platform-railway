@@ -31,15 +31,11 @@ def _get_web_tools() -> list[ParallelTools | MCPTools]:
     """Return web tools for builder-created components."""
     if getenv("PARALLEL_API_KEY"):
         return [ParallelTools()]
-    web_tools = MCPTools(url="https://search.parallel.ai/mcp", transport="streamable-http")
-    # agno 2.6.20 hardcodes name="MCPTools" for every MCP toolkit; a distinct
-    # name keeps this toolkit selectable alongside the agno_docs MCP.
-    web_tools.name = "parallel_web_search"
-    return [web_tools]
+    return [MCPTools(url="https://search.parallel.ai/mcp", transport="streamable-http", name="parallel_web_search")]
 
 
 def _get_tools() -> list:
-    """Build the safe public toolkit registry for StudioTool."""
+    """Build the safe public toolkit registry for StudioTools."""
     return [
         *get_agno_docs_mcp_tools(),
         *_get_web_tools(),

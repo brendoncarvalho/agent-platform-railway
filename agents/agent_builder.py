@@ -4,7 +4,7 @@ Agent Builder
 """
 
 from agno.agent import Agent
-from agno.tools.studio import StudioTool
+from agno.tools.studio import StudioTools
 
 from app.agno_docs import get_agno_docs_mcp_tools
 from app.registry import registry
@@ -71,7 +71,7 @@ agent_builder = Agent(
     db=get_postgres_db(),
     tools=[
         *get_agno_docs_mcp_tools(),
-        StudioTool(
+        StudioTools(
             registry=registry,
             db=get_postgres_db(),
             agents=True,
