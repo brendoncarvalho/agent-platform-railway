@@ -27,7 +27,12 @@ def get_agno_docs_tools() -> list[MCPTools]:
 def get_parallel_tools() -> list[ParallelTools | MCPTools]:
     if getenv("PARALLEL_API_KEY"):
         return [ParallelTools()]
-    return [MCPTools(url="https://search.parallel.ai/mcp", transport="streamable-http", name="parallel_tools")]
+    # timeout_seconds: web_fetch page extraction regularly exceeds the 10s MCP default.
+    return [
+        MCPTools(
+            url="https://search.parallel.ai/mcp", transport="streamable-http", name="parallel_tools", timeout_seconds=30
+        )
+    ]
 
 
 def route_component_type(request: str) -> str:

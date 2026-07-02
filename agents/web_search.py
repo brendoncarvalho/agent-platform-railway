@@ -18,7 +18,10 @@ from db import get_postgres_db
 if getenv("PARALLEL_API_KEY"):
     web_tools: ParallelTools | MCPTools = ParallelTools()
 else:
-    web_tools = MCPTools(url="https://search.parallel.ai/mcp", transport="streamable-http", name="parallel_tools")
+    # timeout_seconds: web_fetch page extraction regularly exceeds the 10s MCP default.
+    web_tools = MCPTools(
+        url="https://search.parallel.ai/mcp", transport="streamable-http", name="parallel_tools", timeout_seconds=30
+    )
 
 
 WEB_SEARCH_INSTRUCTIONS = """\
