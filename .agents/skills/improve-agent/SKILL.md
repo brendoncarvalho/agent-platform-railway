@@ -1,20 +1,24 @@
+---
+name: improve-agent
+description: Autonomous hardening loop for an existing agent — derive probes from the agent's INSTRUCTIONS, run them against the live container, judge responses, edit the agent file, and re-probe until it reliably does what its instructions say. No user input needed. Use to harden an agent against its stated intent; to make a concrete change instead, use extend-agent.
+---
+
 # Improve an Agent
 
-> Claude Code prompt. Open Claude Code in this repo and paste:
-> `Run docs/improve-agent.md`
+> _**Coding-agent workflow** — a `/slash-command` your coding agent (Claude Code, Codex, others) runs while developing this repo. Invoke it by name (e.g. `/improve-agent`) or describe the task and it triggers automatically._
 
 You are recursively improving a target agent **autonomously**. **No user-supplied test cases** — you derive your own probes from the agent's stated purpose (its `INSTRUCTIONS`), test the agent against them, judge the results, and iterate on `agents/<slug>.py` until the agent reliably does what its instructions say it does.
 
-This is the autonomous half of the iteration loop. The user-driven half lives in [`docs/extend-agent.md`](extend-agent.md) (add a tool, add a capability, refine the prompt, fix a specific bug). Use `extend-agent.md` to *change* the agent; use this prompt to *harden* it against its stated intent.
+This is the autonomous half of the iteration loop. The user-driven half lives in [`extend-agent`](../extend-agent/SKILL.md) (add a tool, add a capability, refine the prompt, fix a specific bug). Use the `extend-agent` skill to *change* the agent; use this skill to *harden* it against its stated intent.
 
-The platform is on `http://localhost:8000` with hot-reload enabled (`RUNTIME_ENV=dev`), so edits to `agents/<slug>.py` are picked up by uvicorn within ~1s. No rebuild, no restart.
+The platform is on `http://localhost:8000` (`RUNTIME_ENV=dev`). Compose runs uvicorn with a scoped `--reload`, so edits are picked up automatically; the restart in Step 6 is the deterministic way to avoid racing the reload before re-probing.
 
 This is a **single-pass** loop. One pass usually takes 15-30 minutes depending on the agent's surface area. Re-run if behavior still drifts.
 
 ## 0. Preconditions
 
 - Live container reachable: `curl -sSf http://localhost:8000/health` returns 200. If not, ask the user to `docker compose up -d --build` first. (`docker compose ps` is unreliable from worktrees or alternate clones — trust the health probe.)
-- Live container is bound to *this* checkout — otherwise hot-reload won't see your edits:
+- Live container is bound to *this* checkout — otherwise restarts won't pick up your edits:
 
   ```bash
   docker inspect agentos-api --format '{{range .Mounts}}{{.Source}}{{"\n"}}{{end}}' | grep -F "$(pwd)"
@@ -88,7 +92,7 @@ Tag each as **PASS** / **FAIL**. Group failures by likely root cause:
 Apply surgical edits to `agents/<slug>.py`. One lever per iteration:
 
 - **Instructions** — most fixes live here. Tighten or add a rule. Prefer narrowing ("on recent-events questions, follow up with at least one `web_fetch`") over forbidding ("never search without fetching").
-- **Tools** — add or remove. Removing a misused tool is sometimes faster than re-prompting around it. To add a new agno toolkit, look it up via the `agno-docs` MCP (configured in [`.mcp.json`](../.mcp.json)) so you get the right import path and constructor args.
+- **Tools** — add or remove. Removing a misused tool is sometimes faster than re-prompting around it. To add a new agno toolkit, look it up via the `agno-docs` MCP (configured in [`.mcp.json`](../../../.mcp.json)) so you get the right import path and constructor args.
 - **Context provider** — swap mode (e.g. `agent` → `tools`) if the routing layer is the problem.
 - **Model** — bump if the agent is genuinely under-capable. Last resort.
 - **`num_history_runs`** — raise if the agent is losing context across turns; lower if old turns are leaking into new ones.
@@ -97,9 +101,16 @@ Keep edits short. If you add more than ~5 lines of instruction in one pass, you'
 
 If failures span multiple levers, fix the simplest `INSTRUCTIONS`-shaped failure first — tool and model levers are more disruptive and harder to revert.
 
-## 6. Hot-reload, re-probe failing cases
+## 6. Restart, re-probe failing cases
 
-Save the file. Wait ~2 seconds for uvicorn's reloader. Before re-probing, confirm the edit reached the container:
+Save the file, then restart and wait for health:
+
+```bash
+docker compose restart agentos-api
+until curl -sSf http://localhost:8000/health > /dev/null; do sleep 0.5; done
+```
+
+Before re-probing, confirm the edit reached the container:
 
 ```bash
 docker exec agentos-api grep -c "<unique substring from your edit>" /app/agents/<slug>.py
@@ -128,7 +139,7 @@ Summarize for the user:
 - `git diff agents/<slug>.py` (one short block).
 - Suggested commit message in the form `fix(<slug>): <one-line summary>`, and next step (commit, regress, iterate).
 
-For a regression check across the committed eval suite, see [`docs/eval-and-improve.md`](eval-and-improve.md).
+For a regression check across the committed eval suite, see [`eval-and-improve`](../eval-and-improve/SKILL.md).
 
 ---
 
@@ -144,7 +155,7 @@ Root cause: instructions don't push for drilling in on recent-events questions. 
 
 > *When the user asks about recent events or specific pages, follow up with at least one `web_fetch` to read the most relevant source before answering.*
 
-Hot-reload kicks in. Re-run the probe. Now the agent calls `web_search`, then `web_fetch`, answers with a real citation. **PASS.**
+You restart `agentos-api`, then re-run the probe. Now the agent calls `web_search`, then `web_fetch`, answers with a real citation. **PASS.**
 
 You re-probe everything else. No regressions. Move on.
 

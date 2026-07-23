@@ -63,7 +63,19 @@ Thumbs.db
 # Project-specific
 # =========================
 tmp
-.claude
+
+# Claude Code: ignore local/personal state. The shared dev-time skills live in
+# .agents/skills/ (committed); .claude/skills is a committed symlink into it —
+# no trailing slash on the re-include, or it would only match a real directory.
+# Add more re-include lines (e.g. !.claude/commands/) to ship other shared
+# Claude config too.
+.claude/*
+!.claude/skills
+!.claude/settings.json
+
+# Other coding agents write their own config here (Codex, etc.) — keep it local.
+# The shared, vendor-neutral assets live in .agents/skills/ and .mcp.json.
+.codex/
 
 # Optional: local PyPI creds (uncomment if you ever create it)
 # .pypirc

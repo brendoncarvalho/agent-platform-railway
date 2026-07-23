@@ -1,9 +1,13 @@
+---
+name: eval-and-improve
+description: Run the eval suite (python -m evals), diagnose every failure, fix what's in scope, and loop until all cases pass. Use when evals are failing, or when the user wants to run, diagnose, or repair the eval suite.
+---
+
 # Eval and Improve
 
-> Claude Code prompt. Open Claude Code in this repo and paste:
-> `Run docs/eval-and-improve.md`
+> _**Coding-agent workflow** — a `/slash-command` your coding agent (Claude Code, Codex, others) runs while developing this repo. Invoke it by name (e.g. `/eval-and-improve`) or describe the task and it triggers automatically._
 
-You're running the agent platform's eval suite, diagnosing every failure, fixing what's in scope, and stopping when all cases pass. Surface area is two files: [`evals/cases.py`](../evals/cases.py) (declares cases) and [`evals/__main__.py`](../evals/__main__.py) (runner). Each case uses agno's built-in [`AgentAsJudgeEval`](https://docs.agno.com/evals/agent-as-judge) (LLM judge against a `criteria` rubric, binary pass/fail) and/or [`ReliabilityEval`](https://docs.agno.com/evals/reliability) (asserts which tools fired) — no custom DSL.
+You're running the agent platform's eval suite, diagnosing every failure, fixing what's in scope, and stopping when all cases pass. The eval wiring lives in [`evals/cases.py`](../../../evals/cases.py) (declares cases) and [`evals/__main__.py`](../../../evals/__main__.py) (runner), while fixes may also touch `agents/<slug>.py` or rare one-line config flips in `app/main.py` per Step 3. Each case uses agno's built-in [`AgentAsJudgeEval`](https://docs.agno.com/evals/agent-as-judge) (LLM judge against a `criteria` rubric, binary pass/fail) and/or [`ReliabilityEval`](https://docs.agno.com/evals/reliability) (asserts which tools fired) — no custom DSL.
 
 ## 0. Preconditions
 
@@ -14,9 +18,12 @@ You're running the agent platform's eval suite, diagnosing every failure, fixing
 ## 1. Run the suite
 
 ```bash
-python -m evals               # full suite, concise (response + judge verdicts)
-python -m evals -v            # stream the full agent run with rich panels + eval tables
-python -m evals --case <name> # single case while iterating
+python -m evals --profile smoke        # fast template smoke profile
+python -m evals --profile release      # broader pre-release profile
+python -m evals --profile live         # current web/source checks
+python -m evals --case <name>          # single case while iterating
+python -m evals --json-output out.json # machine-readable results
+python -m evals -v                     # stream the full agent run with rich panels + eval tables
 ```
 
 Output ends with a summary block. Exit code is 0 on all-pass, non-zero on any failure or error.
@@ -57,7 +64,7 @@ Out of scope (flag for the user, don't do):
 - Editing `db/` or `app/` to make a case pass.
 - Editing agno itself.
 
-For agent quality issues that need fast iteration against a live container (cURL probes, instruction tweaks), hand off to [`docs/improve-agent.md`](improve-agent.md) — its autonomous probe loop is faster than running the full eval suite per change. If the change is user-driven (add a tool, fix a known bug), use [`docs/extend-agent.md`](extend-agent.md) instead.
+For agent quality issues that need fast iteration against a live container (cURL probes, instruction tweaks), hand off to [`improve-agent`](../improve-agent/SKILL.md) — its autonomous probe loop is faster than running the full eval suite per change. If the change is user-driven (add a tool, fix a known bug), use [`extend-agent`](../extend-agent/SKILL.md) instead.
 
 ## 4. Re-run and stop
 
@@ -67,23 +74,24 @@ After each fix, re-run the failing case:
 python -m evals --case <name>
 ```
 
-When all targeted cases pass, run the full suite once more to confirm nothing regressed:
+When all targeted cases pass, run the release profile once more to confirm nothing regressed:
 
 ```bash
-python -m evals
+python -m evals --profile release
 ```
 
-Stop when `python -m evals` exits 0 **and** prints an `Eval Summary` block. If a re-run aborts mid-stream (no summary, regardless of exit code), treat it as inconclusive — re-run before declaring green.
+Stop when `python -m evals --profile release` exits 0 **and** prints an `Eval Summary` block. If a re-run aborts mid-stream (no summary, regardless of exit code), treat it as inconclusive — re-run before declaring green.
 
 ## 5. Add a new case (if needed)
 
-If diagnosing a failure reveals a missing assertion, add it to [`evals/cases.py`](../evals/cases.py):
+If diagnosing a failure reveals a missing assertion, add it to [`evals/cases.py`](../../../evals/cases.py):
 
 ```python
 Case(
     name="<short_id>",
     agent=<the_agent>,
     input="<prompt>",
+    profiles=("release",),  # add "smoke" only for fast core checks; use "live" for current web/source checks
     # Either or both of:
     criteria="<rubric describing a correct response>",
     expected_tool_calls=("<tool_name>",),
@@ -96,7 +104,7 @@ Run `python -m evals --case <name>` to confirm it passes against the current age
 
 Every case logs to Postgres via `db=eval_db`. Connect your AgentOS at [os.agno.com](https://os.agno.com) and view eval history — useful for catching slow drift on a weekly cron.
 
-To run on a schedule, register the eval suite as a scheduled task on the AgentOS scheduler — see [agno scheduler docs](https://docs.agno.com/agent-os/scheduler).
+For the template's opt-in scheduled check, see [`workflows/run_evals.py`](../../../workflows/run_evals.py). It runs the `${EVALS_PROFILE:-smoke}` profile in-process (no subprocess) and returns a compact markdown report. Its cron is disabled by default; set `ENABLE_SCHEDULED_EVALS=True` to enable it.
 
 ---
 
@@ -108,6 +116,8 @@ class Case:
     name: str
     agent: Agent
     input: str
+    profiles: tuple[str, ...] = ("release",)
+    timeout_seconds: int | None = None
 
     # Judge (LLM rubric, binary pass/fail): set to enable.
     criteria: str | None = None

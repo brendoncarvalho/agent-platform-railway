@@ -2,10 +2,12 @@
 Database Session
 ================
 
-PostgreSQL connection helpers.
-``get_postgres_db()`` for agent storage backed by Postgres.
-``create_knowledge()`` for agent knowledge backed by PgVector.
+PostgreSQL connection helpers. Use:
+- get_postgres_db() for agent storage backed by Postgres.
+- create_knowledge() for agent knowledge backed by PgVector.
 """
+
+from functools import lru_cache
 
 from agno.db.postgres import PostgresDb
 from agno.knowledge import Knowledge
@@ -17,12 +19,15 @@ from db.url import db_url
 DB_ID = "agentos-db"
 
 
+@lru_cache(maxsize=None)
 def get_postgres_db(contents_table: str | None = None) -> PostgresDb:
-    """Create a PostgresDb instance.
+    """Returns the shared PostgresDb instance for the AgentOS.
 
-    Pass ``contents_table`` only when this database is the ``contents_db``
-    of a Knowledge base — it tells agno where to persist document contents.
-    For plain agent persistence (sessions, memory) leave it unset.
+    Memoized so every agent/workflow/schedule reuses the same object
+    instead of constructing a fresh PostgresDb on each call.
+
+    Pass contents_table when this database is used as the contents_db of a Knowledge base.
+    For plain agent persistence (sessions, memory), leave it unset.
     """
     if contents_table is not None:
         return PostgresDb(id=DB_ID, db_url=db_url, knowledge_table=contents_table)
@@ -30,11 +35,7 @@ def get_postgres_db(contents_table: str | None = None) -> PostgresDb:
 
 
 def create_knowledge(name: str, table_name: str) -> Knowledge:
-    """PgVector knowledge base with hybrid search.
-
-    Plug into an Agent's ``knowledge=`` to give it a RAG surface. Vectors
-    land in ``table_name``; document contents in ``{table_name}_contents``.
-    """
+    """Creates a PgVector knowledge base with hybrid search."""
     return Knowledge(
         name=name,
         vector_db=PgVector(

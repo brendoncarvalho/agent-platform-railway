@@ -10,10 +10,15 @@ from pathlib import Path
 from agno.os import AgentOS
 from agno.utils.log import log_info
 
+from agents.agent_builder import agent_builder
 from agents.code_search import code_search
-from agents.web_search import web_search
 from agents.crm_note_autofix import crm_note_autofix
+from agents.web_search import web_search
+from app.registry import registry
+from app.schedules import register_schedules
 from db import get_postgres_db
+from workflows.deployment_check import deployment_check
+from workflows.run_evals import run_evals
 
 # ---------------------------------------------------------------------------
 # Environment
@@ -23,7 +28,7 @@ scheduler_base_url = getenv("AGENTOS_URL", "http://127.0.0.1:8000")
 
 # ---------------------------------------------------------------------------
 # Interfaces
-# - The CodeSearch agent becomes available on Slack when both env vars are set
+# - The Agent Builder agent becomes available on Slack when both env vars are set
 # ---------------------------------------------------------------------------
 SLACK_BOT_TOKEN = getenv("SLACK_BOT_TOKEN", "")
 SLACK_SIGNING_SECRET = getenv("SLACK_SIGNING_SECRET", "")
@@ -34,7 +39,7 @@ if SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET:
 
     interfaces.append(
         Slack(
-            agent=code_search,
+            agent=agent_builder,
             streaming=True,
             token=SLACK_BOT_TOKEN,
             signing_secret=SLACK_SIGNING_SECRET,
@@ -44,11 +49,16 @@ if SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET:
 
 
 # ---------------------------------------------------------------------------
-# Lifespan
+# Lifespan — app-level startup / teardown.
+#
+# AgentOS handles the MCP lifecycle (connect on startup, close on shutdown)
+# for agent-attached and registry tools. Keep this hook to plug in your own setup.
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app):  # type: ignore[no-untyped-def]
     log_info("AgentOS lifespan: startup")
+    # Register schedules on startup. Idempotent and fail-soft.
+    register_schedules()
     try:
         yield
     finally:
@@ -59,19 +69,17 @@ async def lifespan(app):  # type: ignore[no-untyped-def]
 # Create AgentOS
 # ---------------------------------------------------------------------------
 agent_os = AgentOS(
-    name="AgentOS",
+    name="Self-Driving Agent Platform",
     tracing=True,
     scheduler=True,
     scheduler_base_url=scheduler_base_url,
-    authorization=runtime_env == "prd",
+    authorization=runtime_env != "dev",
     lifespan=lifespan,
     db=get_postgres_db(),
-    agents=[
-        web_search,
-        code_search,
-        crm_note_autofix,
-    ],
+    agents=[agent_builder, code_search, crm_note_autofix, web_search],
+    workflows=[deployment_check, run_evals],
     interfaces=interfaces,
+    registry=registry,
     config=str(Path(__file__).parent / "config.yaml"),
 )
 
@@ -79,4 +87,4 @@ app = agent_os.get_app()
 
 
 if __name__ == "__main__":
-    agent_os.serve(app="app.main:app", reload=runtime_env == "dev")
+    agent_os.serve(app="app.main:app", reload=False)

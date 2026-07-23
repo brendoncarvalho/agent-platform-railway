@@ -1,9 +1,13 @@
+---
+name: create-new-agent
+description: Add a new agent to this AgentOS. Runs guided discovery or takes a concrete idea, then generates agents/slug.py, registers it in app/main.py, adds quick prompts, restarts the container, and smoke-tests it live. Use whenever the user wants to add or create a new agent.
+---
+
 # Create a New Agent
 
-> Claude Code prompt. Open Claude Code in this repo and paste:
-> `Run docs/create-new-agent.md`
+> _**Coding-agent workflow** — a `/slash-command` your coding agent (Claude Code, Codex, others) runs while developing this repo. Invoke it by name (e.g. `/create-new-agent`) or describe the task and it triggers automatically._
 
-You are creating a new agent in this AgentOS template. The user already has the platform running locally on `http://localhost:8000` (`RUNTIME_ENV=dev`). Uvicorn hot-reloads on edits inside an existing module, but **registering a new agent module requires a container restart** — see Step 6.
+You are creating a new agent in this AgentOS. The user already has the platform running locally on `http://localhost:8000` (`RUNTIME_ENV=dev`). Compose runs uvicorn with a scoped `--reload`, so code edits are picked up automatically; Step 6 covers when to restart instead.
 
 ## 0. Preconditions
 
@@ -13,13 +17,13 @@ If it isn't reachable, ask the user to run `docker compose up -d --build` and wa
 
 ## 1. Ask the user
 
-**Ask via the `AskUserQuestion` tool** for every choice-shaped prompt below — the branching opener, the role pick, the systems multiselect, the agent-idea suggestions, and the **Pattern** pick. It renders click-to-select buttons, much smoother than parsing free-text replies. Use plain prompts only for free-form fields (the recurring-task description, the slug).
+Use the coding agent's structured user-input control when available (for example, Claude Code's `AskUserQuestion`, Codex's user-input tool, or an equivalent) for every choice-shaped prompt below — the branching opener, the role pick, the systems multiselect, the agent-idea suggestions, and the **Pattern** pick. If no structured control is available, ask the same choices in concise plain text. Use plain prompts for free-form fields (the recurring-task description, the slug).
 
 Open with a single branching question — don't dump five questions at once:
 
 > Do you have an agent in mind, or would you like a guided experience?
 
-If the user immediately describes a concrete agent ("build me a GitHub PR reviewer"), they've picked the second branch — skip to **Specifics**.
+If the user immediately describes a concrete agent ("build me a GitHub PR reviewer"), treat that as "agent in mind" and skip to **Specifics**.
 
 ### Guided experience
 
@@ -29,7 +33,7 @@ Ask three light discovery questions in one message:
 - What's a recurring task that takes you real time?
 - Which systems do you live in day-to-day? (Slack, GitHub, Linear, Notion, your own DB, …)
 
-Use the answers + the `agno-docs` MCP (configured in [`.mcp.json`](../.mcp.json)) to surface **3-5 concrete agent ideas** grounded in real agno toolkits. For each suggestion: a short name, a one-sentence purpose, and the toolkit(s) it would use.
+Use the answers + the `agno-docs` MCP (configured in [`.mcp.json`](../../../.mcp.json)) to surface **3-5 concrete agent ideas** grounded in real agno toolkits. For each suggestion: a short name, a one-sentence purpose, and the toolkit(s) it would use.
 
 Common starting points: GitHub PR reviewer, Linear triager, knowledge-base Q&A over a `docs/` folder, Slack on-call digest, market-scan / web research.
 
@@ -41,8 +45,8 @@ If the user came in with a concrete agent in mind, ask all five below in one con
 
 1. **Name and purpose** — what should this agent do? One sentence.
 2. **Pattern** — propose the right one with a heuristic, don't make the user choose blind:
-   - **Direct tools** (like [`agents/web_search.py`](../agents/web_search.py)): default when the agent uses ≤2 toolkits, or the user explicitly named the tools.
-   - **Context provider** (like [`agents/code_search.py`](../agents/code_search.py)): default when the agent queries a single information source through one `query_<thing>` tool, or you're hiding a sub-agent.
+   - **Direct tools** (like [`agents/web_search.py`](../../../agents/web_search.py)): default when the agent uses ≤2 toolkits, or the user explicitly named the tools.
+   - **Context provider** (like [`agents/code_search.py`](../../../agents/code_search.py)): default when the agent queries a single information source through one `query_<thing>` tool, or you're hiding a sub-agent.
 3. **Tools / sources** — which MCP servers, toolkits, or context providers? URL of the MCP server if any. (Default: nothing — just chat.)
 4. **Required env vars** — for each toolkit chosen, identify the API key(s) it needs (from the toolkit's `Prerequisites` section in agno docs — see Step 2). For each required key, confirm the user has it set in `.env`. If they don't, offer:
    - (a) add it to `.env` now,
@@ -50,13 +54,13 @@ If the user came in with a concrete agent in mind, ask all five below in one con
    - (c) build anyway and surface the auth error during smoke test.
 5. **Slug** — short kebab-case id (e.g. `linear-agent`). Used as the agent's `id`, in URLs, and in `app/config.yaml`. Propose one based on the agent's purpose.
 
-Model defaults to `gpt-5.4` via `app.settings.default_model()` — override only if the user asks.
+Model defaults to `OPENROUTER_MODEL` (or `openai/gpt-4.1-mini` when unset) via `app.settings.default_model()` — override only if the user asks.
 
 ## 2. Ground the design in agno docs
 
 If the user named any specific toolkit, MCP server, or integration the agent should use (Linear, Stripe, GitHub, Anthropic Claude, etc.), search agno docs **before** writing code:
 
-- Preferred: the `agno-docs` MCP server (configured in [`.mcp.json`](../.mcp.json)) — search for the toolkit / integration name and read the relevant page(s).
+- Preferred: the `agno-docs` MCP server (configured in [`.mcp.json`](../../../.mcp.json)) — search for the toolkit / integration name and read the relevant page(s).
 - Fallback: fetch <https://docs.agno.com/llms.txt> and search inline for the relevant sections.
 
 For each toolkit, capture four things:
@@ -64,7 +68,7 @@ For each toolkit, capture four things:
 - **Import path** (e.g. `from agno.tools.exa import ExaTools`).
 - **Constructor args** that matter for this agent (categories, domains, max_results, etc.).
 - **Required env vars** — feed these back into Step 1, item 4.
-- **Pip dependencies** — some toolkits need extra packages (`exa-py`, `anthropic`, `firecrawl-py`, `linear-sdk`, …). The toolkit's `Prerequisites` section lists them. Capture now, install in Step 6.
+- **Pip dependencies** — some toolkits need extra packages (`exa-py`, `anthropic`, `jina`, `yfinance`, …). The toolkit's `Prerequisites` section lists them. Capture now, then add them to `pyproject.toml` before generating `requirements.txt` in Step 6.
 
 If the toolkit's docs page has no `Prerequisites` or `Authentication` section, the toolkit is keyless and needs no env vars or extra pip deps (e.g. HackerNews, ArXiv, Wikipedia, DuckDuckGo).
 
@@ -72,10 +76,11 @@ Don't guess any of the four. Skip this step entirely if the agent is chat-only w
 
 ## 3. Generate the agent file
 
-Create `agents/<slug>.py` (replacing `-` with `_` for the filename: `agents/linear_agent.py`). Follow the pattern of one of the two reference agents:
+Create `agents/<slug>.py` (replacing `-` with `_` for the filename: `agents/linear_agent.py`). Follow the closest reference pattern:
 
-- **Direct tools** → mirror [`agents/web_search.py`](../agents/web_search.py).
-- **Context provider** → mirror [`agents/code_search.py`](../agents/code_search.py).
+- **Direct tools** → mirror [`agents/web_search.py`](../../../agents/web_search.py).
+- **Context provider** → mirror [`agents/code_search.py`](../../../agents/code_search.py).
+- **Studio builder** → mirror [`agents/agent_builder.py`](../../../agents/agent_builder.py) when the agent should create or refine AgentOS components through StudioTools.
 
 Required structure:
 
@@ -125,14 +130,14 @@ from agents.<slug_underscore> import <slug_underscore>
 
 agent_os = AgentOS(
     ...
-    agents=[web_search, code_search, <slug_underscore>],
+    agents=[code_search, web_search, agent_builder, <slug_underscore>],
     ...
 )
 ```
 
 ## 5. Quick prompts
 
-Add three suggested prompts to [`app/config.yaml`](../app/config.yaml) under `chat.quick_prompts`, keyed by the agent's `id`:
+Add three suggested prompts to [`app/config.yaml`](../../../app/config.yaml) under `chat.quick_prompts`, keyed by the agent's `id`:
 
 ```yaml
 chat:
@@ -145,7 +150,7 @@ chat:
 
 ## 6. Reload the container
 
-After Step 4, **always restart the container** — uvicorn's hot-reload doesn't reliably pick up newly registered modules.
+Compose runs uvicorn with a scoped `--reload`, so the new agent file and its `app/main.py` registration are picked up automatically within a couple of seconds. Restarting is the deterministic option when you don't want to race the reload:
 
 - **No new pip deps** (the common case):
 
@@ -153,7 +158,7 @@ After Step 4, **always restart the container** — uvicorn's hot-reload doesn't 
   docker compose restart agentos-api
   ```
 
-- **New pip deps added in Step 2** — update the lockfile and rebuild:
+- **New pip deps found in Step 2** — add each package to [`pyproject.toml`](../../../pyproject.toml), then update `requirements.txt` and rebuild:
 
   ```bash
   ./scripts/generate_requirements.sh
@@ -200,7 +205,7 @@ docker logs agentos-api --since 30s 2>&1 | grep -E "Running: \w+\(" | head -40
 - **HTTP 404** — the agent isn't registered, the container wasn't restarted, or your edits aren't reaching the bind-mount. Re-check Step 4 and Step 6. If both look right, run `docker inspect agentos-api --format '{{ range .Mounts }}{{ .Source }} → {{ .Destination }}{{ "\n" }}{{ end }}'` to confirm `/app` is bound to *this* repo's path (a stale clone or a different worktree is a common cause).
 - **HTTP 5xx** — read `docker logs agentos-api --tail 50` for the traceback. Most failures are import errors, missing env vars, or a typo in the agent's `tools=` list.
 - **Empty response** — check the logs for tool call errors (rate limits, missing API keys, MCP server unreachable). Surface the issue to the user; don't paper over it.
-- **Tool not firing when expected** — the instruction prompt isn't strong enough. Tell the user; suggest tightening or running [`docs/improve-agent.md`](improve-agent.md) once the agent is loaded.
+- **Tool not firing when expected** — the instruction prompt isn't strong enough. Tell the user; suggest tightening or running [`improve-agent`](../improve-agent/SKILL.md) once the agent is loaded.
 
 Iterate at most 2-3 times on the prompt before stopping and surfacing the question to the user.
 
@@ -210,7 +215,7 @@ When the smoke test passes:
 
 1. Tell the user the agent's slug. They can chat with it at `https://os.agno.com` (if their OS is connected there) or against `http://localhost:8000` directly for local-only.
 2. Suggest the next-step loops:
-   - [`docs/extend-agent.md`](extend-agent.md) — user-driven changes (add a tool, refine the prompt, fix a bug).
-   - [`docs/improve-agent.md`](improve-agent.md) — autonomous probe-and-harden against the agent's `INSTRUCTIONS`.
+   - [`extend-agent`](../extend-agent/SKILL.md) — user-driven changes (add a tool, refine the prompt, fix a bug).
+   - [`improve-agent`](../improve-agent/SKILL.md) — autonomous probe-and-harden against the agent's `INSTRUCTIONS`.
 
-A simple agent usually takes 5-10 minutes from "Run docs/create-new-agent.md" to working. More if the user asks for custom tools or an MCP server with auth.
+A simple agent usually takes 5-10 minutes from invoking the `create-new-agent` skill to working. More if the user asks for custom tools or an MCP server with auth.
