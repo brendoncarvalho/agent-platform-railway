@@ -1,17 +1,9 @@
 chat:
   quick_prompts:
-    agent-builder:
-      - "Build an agent that tracks AI news and writes a daily brief"
-      - "Build a multi-agent team with code search and web search agents"
-      - "Build a workflow that researches a topic, drafts a report, and works with me on improving it"
-    code-search:
-      - "Tell me about this codebase"
-      - "Which agents are available in this codebase?"
-      - "What can I do with the code search agent?"
     crm-note-autofix:
       - "Revise esta nota de CRM: Cliente demonstrou interesse e pediu retorno na próxima semana."
       - "Corrija e resuma esta nota comercial sem inventar informações."
-    web-search:
-      - "Tell me about Agno's AgentOS"
-      - "What's the latest research from Anthropic?"
-      - "Search for OpenAI's latest model release"
+    general-chat:
+      - "Explique de forma simples como funciona inteligência artificial."
+      - "Pesquise as principais notícias de tecnologia de hoje."
+      - "Ajude-me a organizar as prioridades desta semana."

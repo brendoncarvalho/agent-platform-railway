@@ -10,11 +10,8 @@ from pathlib import Path
 from agno.os import AgentOS
 from agno.utils.log import log_info
 
-from agents.agent_builder import agent_builder
-from agents.code_search import code_search
 from agents.crm_note_autofix import crm_note_autofix
-from agents.web_search import web_search
-from app.registry import registry
+from agents.general_chat import general_chat
 from app.schedules import register_schedules
 from db import get_postgres_db
 from workflows.deployment_check import deployment_check
@@ -28,7 +25,7 @@ scheduler_base_url = getenv("AGENTOS_URL", "http://127.0.0.1:8000")
 
 # ---------------------------------------------------------------------------
 # Interfaces
-# - The Agent Builder agent becomes available on Slack when both env vars are set
+# - The conversation agent becomes available on Slack when both env vars are set
 # ---------------------------------------------------------------------------
 SLACK_BOT_TOKEN = getenv("SLACK_BOT_TOKEN", "")
 SLACK_SIGNING_SECRET = getenv("SLACK_SIGNING_SECRET", "")
@@ -39,7 +36,7 @@ if SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET:
 
     interfaces.append(
         Slack(
-            agent=agent_builder,
+            agent=general_chat,
             streaming=True,
             token=SLACK_BOT_TOKEN,
             signing_secret=SLACK_SIGNING_SECRET,
@@ -76,10 +73,9 @@ agent_os = AgentOS(
     authorization=runtime_env != "dev",
     lifespan=lifespan,
     db=get_postgres_db(),
-    agents=[agent_builder, code_search, crm_note_autofix, web_search],
+    agents=[crm_note_autofix, general_chat],
     workflows=[deployment_check, run_evals],
     interfaces=interfaces,
-    registry=registry,
     config=str(Path(__file__).parent / "config.yaml"),
 )
 

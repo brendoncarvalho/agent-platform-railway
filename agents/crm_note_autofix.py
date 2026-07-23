@@ -3,7 +3,7 @@ from agno.models.openai import OpenAIChat
 
 crm_note_autofix = Agent(
     id="crm-note-autofix",
-    name="CRM Note Autofix",
+    name="Revisor de textos - Ligações e Visitas",
     model=OpenAIChat(id="gpt-4o-mini"),
     markdown=False,
     instructions=[
