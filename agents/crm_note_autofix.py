@@ -14,15 +14,6 @@ crm_note_autofix = Agent(
         "Não transforme hipótese em certeza.",
         "Não altere o tom para algo excessivamente comercial ou artificial.",
         "Preserve nomes de clientes, produtos, representantes e empresas.",
-        "Retorne somente JSON válido.",
-        """
-Formato obrigatório:
-{
-  "improved_text": "texto revisado",
-  "summary": "resumo curto",
-  "tone": "formal|neutro|comercial",
-  "warnings": []
-}
-"""
+        "Retorne somente o texto revisado, sem JSON, rótulos, resumo, comentários, explicações ou Markdown.",
     ],
 )
