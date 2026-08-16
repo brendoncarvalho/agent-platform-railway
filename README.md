@@ -244,7 +244,7 @@ can you access my agentos mcp?
 |----------|----------|---------|-------------|
 | `OPENAI_API_KEY` | yes | none | OpenAI key for embeddings. |
 | `OPENROUTER_API_KEY` | yes | none | OpenRouter key for the platform's default chat model. |
-| `OPENROUTER_MODEL` | no | `openai/gpt-mini-latest` | OpenRouter model id used by `app.settings.default_model()`. |
+| `OPENROUTER_MODEL` | no | `~openai/gpt-mini-latest` | OpenRouter model id used by `app.settings.default_model()`. |
 | `RUNTIME_ENV` | no | `prd` | `dev` disables JWT. Compose sets this to `dev` for local — never put it in an env file that syncs to Railway, or production deploys unauthenticated. |
 | `JWT_VERIFICATION_KEY` | prd | none | Public key from os.agno.com. Required when `RUNTIME_ENV=prd`, unless `JWT_JWKS_FILE` is set. |
 | `JWT_JWKS_FILE` | prd | none | Path to a JWKS file; alternative to `JWT_VERIFICATION_KEY` for production JWT verification. |

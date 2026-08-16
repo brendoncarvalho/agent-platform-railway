@@ -21,7 +21,7 @@ AgentOS  (app/main.py)
 Shared:
 - PostgreSQL + pgvector for sessions, memory, knowledge.
 - All three reference agents wire the LearningMachine's per-user profile and memory stores over the shared DB — one human, one self across every agent. Entities and notes stay Chief's.
-- `app.settings.default_model()` returns `OpenRouter(id=OPENROUTER_MODEL or "openai/gpt-mini-latest")` — bump the model in one place.
+- `app.settings.default_model()` returns `OpenRouter(id=OPENROUTER_MODEL or "~openai/gpt-mini-latest")` — bump the model in one place.
 - `app.registry.registry` exposes the safe Studio registry Agent Builder can use: Agno docs MCP, web search, optional Jira tools when `JIRA_*` credentials are configured (read-only unless `JIRA_ENABLE_MUTATIONS=True`, which exposes guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content), reasoning tools, utility functions, the default model, the shared DB, and the reference agents (chief, platform-manager). At runtime agno folds every registered agent's own wiring into the live registry too (`studio`, Chief's `filesystem` notes, the `agentos` ops toolkit) — Agent Builder's instructions treat those as off-limits for builds unless the user asks for the capability by name.
 - Scheduler enabled by default (`scheduler=True`); `app/schedules.py` registers schedules from the lifespan. Deployment check runs daily **on** by default — set `ENABLE_DEPLOY_CHECK=False` to disable it. The run-evals schedule is always registered but ships **disabled** (it uses model calls) — flip it on from the AgentOS UI when you want scheduled eval runs; the toggle survives reboots.
 - Slack interface lights up automatically when both `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` are set.
@@ -195,7 +195,7 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 |---|---|---|---|
 | `OPENAI_API_KEY` | yes | — | OpenAI key for embeddings. |
 | `OPENROUTER_API_KEY` | yes | — | OpenRouter key for the platform's default chat model. |
-| `OPENROUTER_MODEL` | no | `openai/gpt-mini-latest` | OpenRouter model id used by `app.settings.default_model()`. |
+| `OPENROUTER_MODEL` | no | `~openai/gpt-mini-latest` | OpenRouter model id used by `app.settings.default_model()`. |
 | `RUNTIME_ENV` | no | `prd` | `dev` disables JWT. Compose sets this to `dev` for local — never put it in an env file that syncs to Railway, or production deploys unauthenticated. |
 | `JWT_VERIFICATION_KEY` | prd | — | Public key from os.agno.com. Required when `RUNTIME_ENV=prd` and `authorization=True`, unless `JWT_JWKS_FILE` is set. |
 | `JWT_JWKS_FILE` | prd | — | Path to a JWKS file; alternative to `JWT_VERIFICATION_KEY` for production JWT verification. |
