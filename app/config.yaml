@@ -36,6 +36,13 @@ manifest:
       - "Me explique sobre este assunto"
       - "Pesquise as últimas novidades sobre..."
 
+  jira-ticket-responder:
+    description: "Atendimento de chamados Jira em portugues. Le chamados, comenta respostas e so edita comentarios criados pela propria ferramenta de IA."
+    quick_prompts:
+      - "Responda o chamado JIRA-123 conforme estas instrucoes..."
+      - "Busque os chamados abertos do projeto SUP e prepare respostas"
+      - "Edite o comentario de IA no chamado JIRA-123"
+
   # --- Workflows ---
 
   deployment-check:

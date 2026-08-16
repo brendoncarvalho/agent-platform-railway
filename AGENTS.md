@@ -13,6 +13,7 @@ AgentOS  (app/main.py)
 ├── Chief        (agents/chief.py)        — team mascot: LearningMachine + notes + web tools
 ├── Platform Manager (agents/platform_manager.py) — WorkspaceContextProvider + AgentOSTools read-only ops toolkit + shared per-user profile/memory
 ├── Agent Builder (agents/agent_builder.py) — Agno docs MCP + StudioTools + shared per-user profile/memory
+├── Jira Ticket Responder (agents/jira_ticket_responder.py) — guarded Jira ticket operations in pt-BR
 ├── DeployCheck  (workflows/deployment_check.py) — deterministic readiness workflow
 └── RunEvals     (workflows/run_evals.py) — opt-in eval suite workflow
 ```
@@ -21,7 +22,7 @@ Shared:
 - PostgreSQL + pgvector for sessions, memory, knowledge.
 - All three reference agents wire the LearningMachine's per-user profile and memory stores over the shared DB — one human, one self across every agent. Entities and notes stay Chief's.
 - `app.settings.default_model()` returns `OpenAIResponses(id="gpt-5.6-sol")` — bump the model in one place.
-- `app.registry.registry` exposes the safe Studio registry Agent Builder can use: Agno docs MCP, web search, reasoning tools, utility functions, the default model, the shared DB, and the reference agents (chief, platform-manager). At runtime agno folds every registered agent's own wiring into the live registry too (`studio`, Chief's `filesystem` notes, the `agentos` ops toolkit) — Agent Builder's instructions treat those as off-limits for builds unless the user asks for the capability by name.
+- `app.registry.registry` exposes the safe Studio registry Agent Builder can use: Agno docs MCP, web search, optional Jira tools when `JIRA_*` credentials are configured (read-only unless `JIRA_ENABLE_MUTATIONS=True`, which exposes guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content), reasoning tools, utility functions, the default model, the shared DB, and the reference agents (chief, platform-manager). At runtime agno folds every registered agent's own wiring into the live registry too (`studio`, Chief's `filesystem` notes, the `agentos` ops toolkit) — Agent Builder's instructions treat those as off-limits for builds unless the user asks for the capability by name.
 - Scheduler enabled by default (`scheduler=True`); `app/schedules.py` registers schedules from the lifespan. Deployment check runs daily **on** by default — set `ENABLE_DEPLOY_CHECK=False` to disable it. The run-evals schedule is always registered but ships **disabled** (it uses model calls) — flip it on from the AgentOS UI when you want scheduled eval runs; the toggle survives reboots.
 - Slack interface lights up automatically when both `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` are set.
 - MCP server on by default (`mcp_server=True`) at `/mcp` — see [MCP interface](#mcp-interface).
@@ -34,11 +35,13 @@ Shared:
 |------|---------|
 | [`app/main.py`](app/main.py) | AgentOS entrypoint — lifespan hook, conditional Slack, conditional MCP OAuth, JWT gate. |
 | [`app/settings.py`](app/settings.py) | `default_model()` factory. |
-| [`app/registry.py`](app/registry.py) | Safe Studio registry used by Agent Builder — docs MCP, web tools, utility functions, reference agents. |
+| [`app/registry.py`](app/registry.py) | Safe Studio registry used by Agent Builder — docs MCP, web tools, optional Jira tools, utility functions, reference agents. |
 | [`app/config.yaml`](app/config.yaml) | UI manifest per component (keyed by `id`): description + quick prompts. |
 | [`agents/chief.py`](agents/chief.py) | The team mascot — LearningMachine (profile, memory, entities in agentic mode) + FileSystem notes + web tools (Parallel SDK or keyless MCP); the Slack default agent. |
 | [`agents/platform_manager.py`](agents/platform_manager.py) | Flagship agent — codebase context provider + agno's `AgentOSTools` read-only ops toolkit (usage metrics, run and tool activity from traces, eval history, schedules and their run history, runtime-built components, pending approvals) + deployment-check reports with an on-demand diagnostic run. Wires the shared per-user profile/memory stores. |
 | [`agents/agent_builder.py`](agents/agent_builder.py) | Reference agent — creates, edits, and publishes agents, teams, and workflows through StudioTools immediately; only deletes keep a HITL confirmation gate. Wires the shared per-user profile/memory stores. |
+| [`agents/jira_ticket_responder.py`](agents/jira_ticket_responder.py) | Jira support agent — reads Jira issues, comments in pt-BR, and edits only comments created by its own guarded AI tool. |
+| [`app/jira_tools.py`](app/jira_tools.py) | Shared Jira tool factory — read-only native JiraTools plus guarded Jira mutation tools when enabled. |
 | [`workflows/deployment_check.py`](workflows/deployment_check.py) | Reference workflow — a deterministic `Step` that checks DB, auth, scheduler URL, MCP reachability, Slack config, schedule state, and component imports; imported into `app/main.py` and passed to `AgentOS(workflows=[...])`. |
 | [`workflows/run_evals.py`](workflows/run_evals.py) | Optional workflow — runs a tagged subset of the eval suite and returns a compact report. Its daily schedule ships disabled — enable it from the AgentOS UI. |
 | [`app/schedules.py`](app/schedules.py) | `register_schedules()` — cron registration, called from the lifespan (idempotent, fail-soft). |
@@ -202,6 +205,8 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 | `EVALS_CASE_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for run-evals runs; applies only to cases that don't set their own `timeout_seconds`. |
 | `EVALS_SUITE_TIMEOUT_SECONDS` | no | `900` | Whole-suite timeout for run-evals runs; per-case timeouts are the granular limit. The default bounds the `smoke` tag's worst case (incl. builder-case teardown). |
 | `PARALLEL_API_KEY` | no | — | Authenticates Chief's and the Studio registry's web search tools (Parallel SDK when set; keyless MCP fallback with a lower rate ceiling). |
+| `JIRA_SERVER_URL` / `JIRA_USERNAME` / `JIRA_TOKEN` or `JIRA_PASSWORD` | no | none | When set, exposes JiraTools in the Studio registry. Defaults to read-only search/get issue. |
+| `JIRA_ENABLE_MUTATIONS` | no | `False` | Set `True` to expose guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content. |
 | `SLACK_BOT_TOKEN` | no | — | Bot token. Set with signing secret to enable the Slack interface. |
 | `SLACK_SIGNING_SECRET` | no | — | Signing secret. Both it and the bot token must be set for the interface to load. |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` | no | matches compose | Postgres connection. |

@@ -30,6 +30,7 @@ This codebase comes with:
 
 - **Chief, your team's mascot.** "Chief, we're going with PlanetScale over RDS." "Chief, zak ran a good launch." Tell it anything — decisions, who's on what, what you learned — and it files the who and the why, learns how you work, and connects the dots when someone asks what's happening. Every frontend talks to the same Chief: what you tell it in Slack is there when you ask from claude.ai or ChatGPT.
 - **Two platform agents** that help you build and run the platform from your favorite AI apps like Claude and ChatGPT. **Agent Builder** creates agents, teams, and workflows using the AgentOS Studio. **Platform Manager** understands, monitors, and explains the platform: codebase questions, eval history, deployment checks, schedules.
+- **Jira Ticket Responder** answers Jira support tickets in pt-BR using guarded tools: it can comment on any issue, edit only comments it created, move status, set original estimates, and assign owners when explicitly requested, and never deletes Jira content.
 - **Coding-agent skills** let Claude Code, Codex, Cursor, and other coding agents build, test, and improve the platform automatically — see [Using the platform](#using-the-platform).
 
 Trace data, agent code, evals, and system logs are all available to coding agents, so the platform can inspect and improve itself end to end.
@@ -253,6 +254,8 @@ can you access my agentos mcp?
 | `EVALS_CASE_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for run-evals runs; applies only to cases that don't set their own `timeout_seconds`. |
 | `EVALS_SUITE_TIMEOUT_SECONDS` | no | `900` | Whole-suite timeout for run-evals runs; per-case timeouts are the granular limit. The default bounds the `smoke` tag's worst case (incl. builder-case teardown). |
 | `PARALLEL_API_KEY` | no | none | Authenticates Chief's and the Studio registry's web search tools (Parallel SDK when set; keyless MCP fallback). |
+| `JIRA_SERVER_URL` / `JIRA_USERNAME` / `JIRA_TOKEN` or `JIRA_PASSWORD` | no | none | When set, exposes JiraTools in the Studio registry. Defaults to read-only search/get issue. |
+| `JIRA_ENABLE_MUTATIONS` | no | `False` | Set `True` to expose guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content. |
 | `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | no | none | Both must be set to enable the Slack interface. |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` | no | matches compose | Postgres connection. |
 | `DB_DRIVER` | no | `postgresql+psycopg` | SQLAlchemy driver. |

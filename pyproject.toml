@@ -9,6 +9,7 @@ authors = [{ name = "Agno", email = "hello@agno.com" }]
 
 dependencies = [
   "agno[os,mcp,slack,pgvector,psycopg]==2.8.5",
+  "jira==3.10.5",
   "openai",
   "parallel-web",
   "python-dotenv",

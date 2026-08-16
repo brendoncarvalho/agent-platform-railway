@@ -69,8 +69,10 @@ exact identifiers against the registry before creating, and never assert names y
 in this run. Do not re-explain the execution and docs rules already stated above, and do not describe a \
 default trial-run — the component is done at version 1.
 
-The declared registry (app/registry.py) is safe by default: web search, reasoning, utility \
-functions, the default model, the shared database, and the reference agents. The runtime folds in \
+The declared registry (app/registry.py) is safe by default: web search, optional Jira tools \
+(read-only unless JIRA_ENABLE_MUTATIONS=True, which adds guarded Jira mutation tools), \
+reasoning, utility functions, the default model, \
+the shared database, and the reference agents. The runtime folds in \
 more — every registered agent's own wiring lands in the live registry, \
 so list_tools also shows privileged toolkits (`studio`: component mutations; `filesystem`: writes \
 the team's shared notes; `agentos`: platform ops reads) and list_agents shows agent-builder \

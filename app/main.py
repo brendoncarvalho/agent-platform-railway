@@ -14,6 +14,7 @@ from agents.agent_builder import agent_builder
 from agents.chief import chief
 from agents.crm_note_autofix import crm_note_autofix
 from agents.general_chat import general_chat
+from agents.jira_ticket_responder import jira_ticket_responder
 from agents.platform_manager import platform_manager
 from app.registry import registry
 from app.schedules import register_schedules
@@ -98,7 +99,14 @@ agent_os = AgentOS(
     mcp_auth=mcp_auth,
     lifespan=lifespan,
     db=get_postgres_db(),
-    agents=[chief, agent_builder, platform_manager, crm_note_autofix, general_chat],
+    agents=[
+        chief,
+        agent_builder,
+        platform_manager,
+        crm_note_autofix,
+        general_chat,
+        jira_ticket_responder,
+    ],
     workflows=[deployment_check, run_evals],
     interfaces=interfaces,
     registry=registry,

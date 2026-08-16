@@ -15,7 +15,9 @@ from agno.tools.reasoning import ReasoningTools
 from agents.chief import chief
 from agents.crm_note_autofix import crm_note_autofix
 from agents.general_chat import general_chat
+from agents.jira_ticket_responder import jira_ticket_responder
 from agents.platform_manager import platform_manager
+from app.jira_tools import get_jira_tools
 from app.settings import default_model
 from db import get_postgres_db
 
@@ -59,10 +61,11 @@ registry = Registry(
     tools=[
         *get_agno_docs_tools(),
         *get_parallel_tools(),
+        *get_jira_tools(),
         ReasoningTools(add_instructions=True),
     ],
     models=[default_model()],
     dbs=[get_postgres_db()],
     functions=[route_component_type, score_eval_status],
-    agents=[chief, platform_manager, crm_note_autofix, general_chat],
+    agents=[chief, platform_manager, crm_note_autofix, general_chat, jira_ticket_responder],
 )

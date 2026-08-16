@@ -47,6 +47,9 @@ certifi==2026.6.17
     # via
     #   httpcore
     #   httpx
+    #   requests
+charset-normalizer==3.5.1
+    # via requests
 cffi==2.1.0
     # via cryptography
 click==8.4.2
@@ -60,6 +63,8 @@ cryptography==49.0.0
     #   pyjwt
 cyclopts==4.20.0
     # via fastmcp-slim
+defusedxml==0.7.1
+    # via jira
 distro==1.9.0
     # via
     #   openai
@@ -114,6 +119,7 @@ idna==3.18
     #   anyio
     #   email-validator
     #   httpx
+    #   requests
     #   yarl
 jaraco-classes==3.4.0
     # via keyring
@@ -121,12 +127,16 @@ jaraco-context==6.1.2
     # via keyring
 jaraco-functools==4.5.0
     # via keyring
+jira==3.10.5
+    # via agentos (pyproject.toml)
 jiter==0.16.0
     # via openai
 joserfc==1.7.2
     # via
     #   authlib
     #   fastmcp-slim
+oauthlib==3.3.1
+    # via requests-oauthlib
 jsonref==1.1.0
     # via fastmcp-slim
 jsonschema==4.26.0
@@ -188,6 +198,7 @@ packaging==26.2
     # via
     #   agno
     #   fastmcp-slim
+    #   jira
     #   opentelemetry-instrumentation
 parallel-web==1.1.0
     # via agentos (pyproject.toml)
@@ -260,6 +271,15 @@ referencing==0.37.0
     #   jsonschema
     #   jsonschema-path
     #   jsonschema-specifications
+requests==2.34.2
+    # via
+    #   jira
+    #   requests-oauthlib
+    #   requests-toolbelt
+requests-oauthlib==2.0.0
+    # via jira
+requests-toolbelt==1.0.0
+    # via jira
 rich==15.0.0
     # via
     #   agno
@@ -330,6 +350,8 @@ typing-inspection==0.4.2
     #   pydantic-settings
 uncalled-for==0.3.2
     # via fastmcp-slim
+urllib3==2.7.0
+    # via requests
 uvicorn==0.50.2
     # via
     #   agno
