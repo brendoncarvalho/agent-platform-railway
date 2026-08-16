@@ -9,6 +9,7 @@ import json
 from os import getenv
 from typing import Any
 from urllib.parse import quote
+from uuid import UUID
 
 JIRA_AI_COMMENT_MARKER = "<!-- agentos-ai-comment -->"
 JIRA_AI_COMMENT_FOOTER = "Informação gerada por uma ferramenta de IA."
@@ -112,8 +113,10 @@ def check_jira_configuration() -> str:
         cloud_id = getenv("JIRA_CLOUD_ID", "")
         if cloud_id.startswith("http://") or cloud_id.startswith("https://"):
             payload["cloud_id_format"] = "invalid_url"
+        elif not _valid_uuid(cloud_id):
+            payload["cloud_id_format"] = "invalid_uuid"
         else:
-            payload["cloud_id_format"] = "uuid_or_id"
+            payload["cloud_id_format"] = "uuid"
             payload["oauth2_api_base"] = f"{JIRA_OAUTH2_API_BASE}/{cloud_id}/rest/api/{JIRA_REST_API_VERSION}"
     return json.dumps(payload, ensure_ascii=False)
 
@@ -128,11 +131,15 @@ def diagnose_jira_connection(issue_key: str = "") -> str:
     payload: dict[str, Any] = {
         "ok": False,
         "configuration": configuration,
+        "accessible_resources": None,
         "live_test": None,
     }
     if not configuration["configured"]:
         payload["message"] = "Configuração incompleta; a API real não foi chamada."
         return json.dumps(payload, ensure_ascii=False, default=str)
+
+    if _jira_auth_type() == "oauth2":
+        payload["accessible_resources"] = _jira_oauth2_accessible_resources_for_diagnostics()
 
     live_test = json.loads(test_jira_connection(issue_key=issue_key))
     payload["live_test"] = live_test
@@ -212,6 +219,14 @@ def _jira_oauth2_access_token() -> str:
     return str(token)
 
 
+def _valid_uuid(value: str) -> bool:
+    try:
+        UUID(value)
+        return True
+    except ValueError:
+        return False
+
+
 def _jira_oauth2_api_url(path: str) -> str:
     cloud_id = getenv("JIRA_CLOUD_ID")
     if not cloud_id:
@@ -220,6 +235,12 @@ def _jira_oauth2_api_url(path: str) -> str:
         msg = (
             "JIRA_CLOUD_ID deve ser o UUID/cloudId do site Atlassian, não a URL. "
             "Use JIRA_SERVER_URL para https://seu-site.atlassian.net."
+        )
+        raise RuntimeError(msg)
+    if not _valid_uuid(cloud_id):
+        msg = (
+            "JIRA_CLOUD_ID não parece ser um UUID/cloudId válido. Obtenha o valor correto em "
+            "https://api.atlassian.com/oauth/token/accessible-resources."
         )
         raise RuntimeError(msg)
     return f"{JIRA_OAUTH2_API_BASE}/{cloud_id}/rest/api/{JIRA_REST_API_VERSION}{path}"
@@ -299,6 +320,43 @@ def _lookup_jira_cloud_id(access_token: str) -> str:
         "para selecionar o Jira correto."
     )
     raise RuntimeError(msg)
+
+
+def _jira_oauth2_accessible_resources_for_diagnostics() -> dict[str, Any]:
+    import requests
+
+    try:
+        access_token = _jira_oauth2_access_token()
+        response = requests.get(
+            "https://api.atlassian.com/oauth/token/accessible-resources",
+            headers={"Authorization": f"Bearer {access_token}", "Accept": "application/json"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        resources = response.json()
+        if not isinstance(resources, list):
+            resources = []
+
+        configured_cloud_id = getenv("JIRA_CLOUD_ID", "")
+        configured_server_url = _normalized_url(getenv("JIRA_SERVER_URL"))
+        return {
+            "ok": True,
+            "count": len(resources),
+            "configured_cloud_id_found": any(resource.get("id") == configured_cloud_id for resource in resources),
+            "configured_server_url_found": any(
+                _normalized_url(resource.get("url")) == configured_server_url for resource in resources
+            ),
+            "resources": [
+                {
+                    "id": resource.get("id"),
+                    "url": resource.get("url"),
+                    "name": resource.get("name"),
+                }
+                for resource in resources
+            ],
+        }
+    except Exception as exc:
+        return json.loads(_jira_error_payload(exc, "oauth2_accessible_resources"))
 
 
 def _jira_client() -> Any:
