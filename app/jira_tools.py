@@ -12,7 +12,8 @@ from urllib.parse import quote
 from uuid import UUID
 
 JIRA_AI_COMMENT_MARKER = "<!-- agentos-ai-comment -->"
-JIRA_AI_COMMENT_FOOTER = "Informação gerada por uma ferramenta de IA."
+JIRA_AI_COMMENT_FOOTER = "***Resposta enviada/gerada por uma ferramenta de IA.***"
+JIRA_LEGACY_AI_COMMENT_FOOTER = "Informação gerada por uma ferramenta de IA."
 JIRA_OAUTH2_API_BASE = "https://api.atlassian.com/ex/jira"
 JIRA_REST_API_VERSION = "2"
 
@@ -469,9 +470,35 @@ def _jira_user_matches(user: Any, expected: str) -> bool:
     return expected in candidates
 
 
-def _format_jira_ai_comment(comment_pt_br: str) -> str:
+def _jira_comment_recipient(issue_key: str) -> str:
+    try:
+        if _jira_auth_type() == "oauth2":
+            issue = _jira_oauth2_request("GET", f"/issue/{quote(issue_key)}", params={"fields": "reporter"})
+            reporter = _jira_rest_user_summary(issue.get("fields", {}).get("reporter"))
+        else:
+            issue = _jira_client().issue(issue_key)
+            reporter = _jira_user_summary(getattr(issue.fields, "reporter", None))
+    except Exception:
+        reporter = None
+
+    if not reporter:
+        return ""
+    return reporter.get("display_name") or reporter.get("email") or reporter.get("name") or ""
+
+
+def _format_jira_ai_comment(comment_pt_br: str, issue_key: str) -> str:
     body = comment_pt_br.strip()
-    return f"Olá!\n\n{body}\n\n{JIRA_AI_COMMENT_MARKER}\n---\n{JIRA_AI_COMMENT_FOOTER}"
+    recipient = _jira_comment_recipient(issue_key)
+    greeting = f"Olá @{recipient}!" if recipient else "Olá!"
+    return f"{greeting}\n\n{body}\n\n{JIRA_AI_COMMENT_FOOTER}"
+
+
+def _is_jira_ai_comment(body: str) -> bool:
+    return (
+        JIRA_AI_COMMENT_MARKER in body
+        or JIRA_AI_COMMENT_FOOTER in body
+        or JIRA_LEGACY_AI_COMMENT_FOOTER in body
+    )
 
 
 def _explicitly_requested(value: str, user_request_quote: str) -> bool:
@@ -639,12 +666,11 @@ def comment_jira_issue(issue_key: str, comment_pt_br: str) -> str:
     """Adiciona um comentário de resposta em português do Brasil a qualquer chamado Jira.
 
     Use para responder chamados Jira. O comentário deve ser escrito em
-    português do Brasil. A ferramenta adiciona saudação e aviso final de IA.
-    Também adiciona um marcador interno para permitir editar somente
-    comentários criados por esta ferramenta.
+    português do Brasil. A ferramenta adiciona saudação mencionando o reporter
+    do chamado, quando disponível, e aviso final de IA em destaque.
     """
     try:
-        formatted_comment = _format_jira_ai_comment(comment_pt_br)
+        formatted_comment = _format_jira_ai_comment(comment_pt_br, issue_key)
         if _jira_auth_type() == "oauth2":
             created_comment = _jira_oauth2_request(
                 "POST",
@@ -665,10 +691,11 @@ def comment_jira_issue(issue_key: str, comment_pt_br: str) -> str:
 def edit_jira_ai_comment(issue_key: str, comment_id: str, comment_pt_br: str) -> str:
     """Edita um comentário Jira somente quando ele foi criado por esta ferramenta de IA.
 
-    Recusa editar comentários sem o marcador desta ferramenta ou que não foram
-    criados por JIRA_USERNAME. Nunca use para deletar conteúdo. O novo texto
-    deve estar em português do Brasil; a ferramenta adiciona novamente a
-    saudação e o aviso de IA.
+    Recusa editar comentários sem o rodapé desta ferramenta ou que não foram
+    criados por JIRA_USERNAME. Também reconhece comentários legados com o
+    marcador antigo. Nunca use para deletar conteúdo. O novo texto deve estar
+    em português do Brasil; a ferramenta adiciona novamente a saudação e o
+    aviso de IA.
     """
     try:
         jira = _jira_client()
@@ -676,7 +703,7 @@ def edit_jira_ai_comment(issue_key: str, comment_id: str, comment_pt_br: str) ->
         existing_body = getattr(comment, "body", "")
         author = getattr(comment, "author", None)
 
-        if JIRA_AI_COMMENT_MARKER not in existing_body:
+        if not _is_jira_ai_comment(existing_body):
             return (
                 f"Recusado: o comentário {comment_id} no chamado {issue_key} não "
                 "foi criado por esta ferramenta de IA. Nenhuma alteração foi feita no Jira."
@@ -688,7 +715,7 @@ def edit_jira_ai_comment(issue_key: str, comment_id: str, comment_pt_br: str) ->
                 "foi criado por JIRA_USERNAME. Nenhuma alteração foi feita no Jira."
             )
 
-        comment.update(body=_format_jira_ai_comment(comment_pt_br))
+        comment.update(body=_format_jira_ai_comment(comment_pt_br, issue_key))
         return f"Comentário {comment_id} do chamado {issue_key} atualizado."
     except Exception as exc:
         return _jira_error_payload(exc, "edit_jira_ai_comment")

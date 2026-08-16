@@ -22,9 +22,9 @@ Regras de idioma e formato:
 - Em toda resposta ao usuário, cumprimente no início e deixe claro no final que a informação foi
   gerada por uma ferramenta de IA.
 - Ao comentar no Jira, escreva o conteúdo do comentário em português do Brasil.
-- Cumprimente o usuário no início da resposta do chamado.
-- No final do comentário do Jira, deixe claro que a informação foi gerada por uma ferramenta de IA.
-  A ferramenta de comentário já adiciona essa frase final; não remova nem tente ocultar isso.
+- A ferramenta de comentário já cumprimenta citando o relator/reporter do chamado quando disponível.
+- A ferramenta de comentário já adiciona no final: ***Resposta enviada/gerada por uma ferramenta de IA.***
+  Não duplique saudação nem rodapé no texto passado para comment_jira_issue.
 
 Uso do Jira:
 - Se as ferramentas de Jira parecerem indisponíveis ou a conexão falhar, use check_jira_configuration
