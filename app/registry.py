@@ -2,7 +2,7 @@
 AgentOS Registry
 ================
 
-The tools, functions, models, databases, and reference agents available to AgentOS Studio.
+The tools, functions, models, databases, and agents available to AgentOS Studio.
 """
 
 from os import getenv
@@ -12,8 +12,10 @@ from agno.tools.mcp import MCPTools
 from agno.tools.parallel import ParallelTools
 from agno.tools.reasoning import ReasoningTools
 
-from agents.code_search import code_search
-from agents.web_search import web_search
+from agents.chief import chief
+from agents.crm_note_autofix import crm_note_autofix
+from agents.general_chat import general_chat
+from agents.platform_manager import platform_manager
 from app.settings import default_model
 from db import get_postgres_db
 
@@ -53,7 +55,7 @@ def score_eval_status(passed: int, total: int) -> str:
 
 
 registry = Registry(
-    name="Agent Platform Registry",
+    name="AgentOS Registry",
     tools=[
         *get_agno_docs_tools(),
         *get_parallel_tools(),
@@ -62,5 +64,5 @@ registry = Registry(
     models=[default_model()],
     dbs=[get_postgres_db()],
     functions=[route_component_type, score_eval_status],
-    agents=[web_search, code_search],
+    agents=[chief, platform_manager, crm_note_autofix, general_chat],
 )

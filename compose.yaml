@@ -21,8 +21,6 @@ services:
     container_name: agentos-api
     image: ${IMAGE_NAME:-agentos}:${IMAGE_TAG:-latest}
     # --reload-dir limits the watcher to dirs that contain runtime code.
-    # Without this, edits under scripts/, tmp/, .agents/ would each
-    # restart uvicorn — disruptive when chatting with an agent.
     command: >
       uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
       --reload-dir agents --reload-dir app --reload-dir db --reload-dir evals --reload-dir workflows

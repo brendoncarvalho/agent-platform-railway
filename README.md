@@ -1,31 +1,52 @@
-# Self-Driving Agent Platform
+# AgentOS: FastAPI for Agents
 
-A platform that builds, runs, evaluates, and improves agents with agents.
+AgentOS turns your agents into a production API and MCP server. One AI backend that serves every frontend.
 
-Built on [Agno](https://docs.agno.com). Everything runs in your cloud. Your data lives in your database.
+1. **Your product.** Call the REST API from your app: run agents, stream responses, and manage sessions, memory, and knowledge.
+2. **AgentOS UI.** Chat with agents, build new ones, inspect sessions, traces, memory, and evals from the AgentOS UI at [os.agno.com](https://os.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agentos-railway&utm_content=agentos-railway&utm_term=railway).
+3. **Coding agents.** Manage the full agent development lifecycle (create, extend, improve, eval, review) using the skills in [`.agents/skills/`](.agents/skills/).
+4. **AI apps.** Use your agents from Claude and ChatGPT using the MCP server at `/mcp`.
+5. **Chat interfaces.** Chat with your agents from Slack, WhatsApp, Telegram, and Discord.
 
-## Driven by agents
+<img width="3298" height="2412" alt="AgentOS" src="https://github.com/user-attachments/assets/40a53a42-d4d2-402b-8e92-742609207957" />
 
-This codebase has two self-driving loops:
+<p align="center"><em>Built on <a href="https://docs.agno.com">Agno</a>. Everything runs in your cloud, your data lives in your database.</em></p>
 
-- **Coding-agent skills** let Claude Code, Codex, Cursor, and other coding agents build, test, and improve the platform automatically. Five skills cover the full agent development lifecycle — see [Using the platform](#using-the-platform).
-- **Agent Builder in the UI** creates agents, teams, and workflows through AgentOS Studio tools, grounded by the Agno docs MCP and a safe registry.
+## Get Started
+
+Copy this prompt into your favorite coding agent. It sets up the platform and builds your first agent with you:
+
+```text
+Help me set up my agent platform and build my first agent.
+
+Clone https://github.com/agno-agi/agentos-railway into a folder called agent-platform, cd in, and run the setup-platform skill (in .agents/skills/).
+```
+
+Your coding agent drives the whole flow: it checks Docker, sets up `.env`, boots the platform, verifies the MCP endpoint, connects the AgentOS UI, and builds your first agent with you. Prefer to drive yourself? See [Manual Setup](#manual-setup).
+
+## Built for agents
+
+This codebase comes with:
+
+- **Chief, your team's mascot.** "Chief, we're going with PlanetScale over RDS." "Chief, zak ran a good launch." Tell it anything — decisions, who's on what, what you learned — and it files the who and the why, learns how you work, and connects the dots when someone asks what's happening. Every frontend talks to the same Chief: what you tell it in Slack is there when you ask from claude.ai or ChatGPT.
+- **Two platform agents** that help you build and run the platform from your favorite AI apps like Claude and ChatGPT. **Agent Builder** creates agents, teams, and workflows using the AgentOS Studio. **Platform Manager** understands, monitors, and explains the platform: codebase questions, eval history, deployment checks, schedules.
+- **Coding-agent skills** let Claude Code, Codex, Cursor, and other coding agents build, test, and improve the platform automatically — see [Using the platform](#using-the-platform).
 
 Trace data, agent code, evals, and system logs are all available to coding agents, so the platform can inspect and improve itself end to end.
 
-## Get Started
+## Manual Setup
 
 ### Step 1: Run locally
 
 > **Prerequisite:** [Docker](https://www.docker.com/get-started/) installed and running.
 
 ```sh
-git clone https://github.com/agno-agi/agent-platform-railway.git agent-platform
-cd agent-platform
+git clone https://github.com/agno-agi/agentos-railway agentos
+cd agentos
 
 # Configure credentials
 cp example.env .env
-# Open .env and set OPENAI_API_KEY and OPENROUTER_API_KEY
+# Open .env and set OPENAI_API_KEY
 
 # Run the platform on docker
 docker compose up -d --build
@@ -35,8 +56,8 @@ Confirm your AgentOS is running at [http://localhost:8000/docs](http://localhost
 
 ### Step 2: Connect the AgentOS UI
 
-1. Open [os.agno.com](https://os.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agent-platform&utm_content=agent-platform&utm_term=railway) and sign in.
-2. Click **Connect OS**, enter `http://localhost:8000` as the URL, name it **Local Agent Platform**, and connect.
+1. Open [os.agno.com](https://os.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agentos-railway&utm_content=agentos-railway&utm_term=railway) and sign in.
+2. Click **Connect OS**, enter `http://localhost:8000` as the URL, name it **Local AgentOS**, and connect.
 
 ### Step 3: Build your first agent
 
@@ -44,9 +65,17 @@ Confirm your AgentOS is running at [http://localhost:8000/docs](http://localhost
 2. Once created, click the **Refresh** button on the top right. You should now see the "Daily AI News Brief" agent in the **Agents** dropdown. Click the newly created agent.
 3. Ask: "What's new with Anthropic?"
 
+### Step 4: Check platform health
+
+Click **Chat** under **Platform Manager** and ask: "How healthy is the platform?" It answers from the codebase and runtime data — eval history, deployment checks, schedules, and the component you just built.
+
+### Step 5: Meet Chief
+
+Click **Chat** under **Chief** and tell it what you're working on: "Hey Chief — I'm building a support bot." It files the who and what as entities, the why as notes, and what it learns about you stays yours. From then on, tag it in from anywhere — this UI, Slack, claude.ai, ChatGPT — and ask "Chief, what's happening?": same thread everywhere.
+
 ## Run in production
 
-You can run the platform anywhere that supports containerized images. For the lightest lift, the codebase comes with scripts to deploy the platform to [Railway](https://railway.com).
+You can run the platform anywhere that supports containerized images. This codebase comes with scripts to deploy the platform to [Railway](https://railway.com) — and a coding-agent skill, [`/deploy-platform`](.agents/skills/deploy-platform/SKILL.md), that drives them for you and verifies the live platform at the end.
 
 > **Prerequisite:** [Railway CLI](https://docs.railway.com/cli#installing-the-cli) installed and `railway login` completed.
 
@@ -55,11 +84,11 @@ You can run the platform anywhere that supports containerized images. For the li
 Create a new `.env.production` file for production credentials.
 
 ```sh
-cp .env .env.production
+cp .env .env.production          # or cp example.env .env.production
 # Edit .env.production with production values
 ```
 
-The deploy scripts read `.env.production` first and fall back to `.env`. This lets you keep separate values for local and production: different OpenAI keys, production-only credentials, a different Slack workspace. `.env.production` is gitignored.
+Keeping a separate `.env.production` lets us use different values for local and production: different OpenAI keys, production-only credentials, a different Slack workspace.
 
 ### 2. Deploy
 
@@ -67,11 +96,11 @@ The deploy scripts read `.env.production` first and fall back to `.env`. This le
 ./scripts/railway/up.sh
 ```
 
-This provisions Postgres and the app service on the same private network.
+This provisions the AgentOS service and Postgres on the same private network. The script pauses and asks for a JWT verification key for authentication (see next section).
 
-### 3. Set production auth
+### 3. Production Auth
 
-Token-Based Authorization is on by default. Without `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE`, the app refuses to serve traffic. The platform's job is to keep your data private, so the safe default is "refuse to start" without an authentication token.
+Token-Based Authorization is on by default. Without a `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE`, the app refuses to serve traffic in production. The platform's job is to keep your data private, so the safe default is "refuse to start" without an authentication token.
 
 Token-Based Auth gives you three things:
 
@@ -81,24 +110,32 @@ Token-Based Auth gives you three things:
 
 During `./scripts/railway/up.sh`, the script creates your Railway domain and pauses so you can mint the key before the app starts.
 
-1. Open [os.agno.com](https://os.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agent-platform&utm_content=agent-platform&utm_term=railway), click **Connect OS** → **Live**, enter your Railway domain, and connect.
-2. Name it **Live Agent Platform**.
-3. Go to **Settings** → **OS & Security**.
-4. Turn **Token-Based Authorization (JWT)** on.
-5. Copy the public key.
-6. Paste the full public key into the `up.sh` prompt. The script saves it into your env file for future syncs:
+1. Open [os.agno.com](https://os.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agentos-railway&utm_content=agentos-railway&utm_term=railway), click **Connect OS** → **Live**, and enter your Railway domain.
+2. Name it **Live AgentOS**, flip **Token-Based Authorization (JWT)** on — the toggle is right on the connect panel — and connect. The UI generates your public key. (Already connected without it? **Settings** → **OS & Security** → **Token-Based Authorization (JWT)**.)
+3. Copy the public key.
+4. Paste the full public key into the `up.sh` prompt. The script saves it into your env file for future syncs:
 
 ```sh
-JWT_VERIFICATION_KEY=-----BEGIN PUBLIC KEY-----
+JWT_VERIFICATION_KEY="-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkq...
------END PUBLIC KEY-----
+-----END PUBLIC KEY-----"
 ```
 
 > **Heads up.** Live AgentOS Connections are a paid feature. Use `PLATFORM30` to get 1 month off. We are working on a free trial so you don't have to pay to try.
 
-If you run non-interactively or skip the prompt, you can sync environment variables later with `./scripts/railway/env-sync.sh`.
+If you get something wrong, you can re-sync environment variables with `./scripts/railway/env-sync.sh`.
 
-### 4. Verify
+### 4. Register your production AgentOS to MCP clients
+
+Re-run `uvx agno connect`, this time pointed at your deployed domain, to connect Claude Code, Claude Desktop, Codex, and Cursor to your production platform:
+
+```sh
+uvx agno connect --url https://<railway-domain>
+```
+
+For **claude.ai and ChatGPT (web)**: add `https://<railway-domain>/mcp` as a custom connector in the chat app's connector settings. Leave the form's optional OAuth fields (client ID / client secret) empty. Click **Connect** and, on the consent page, enter the `MCP_CONNECT_SECRET` that `up.sh` generated during deploy (saved in `.env.production`).
+
+### 5. Verify
 
 You can check the logs on the Railway dashboard, or by running the following command:
 
@@ -106,15 +143,15 @@ You can check the logs on the Railway dashboard, or by running the following com
 railway logs --service agent-os
 ```
 
-### 5. Redeploy after code changes
+### Redeploy after code changes
 
-For one-off updates from your machine, run the following command:
+To redeploy your AgentOS, run the following command:
 
 ```sh
 ./scripts/railway/redeploy.sh
 ```
 
-To auto-deploy on every push to `main`, follow these steps:
+Recommended: Auto-deploy on merge to `main` using:
 
 1. Open the Railway dashboard, your project, the agent-os service, **Settings**.
 2. Under **Source**, click **Connect Repo** and pick your repo.
@@ -122,7 +159,7 @@ To auto-deploy on every push to `main`, follow these steps:
 
 Push to `main` triggers a build and rolling deploy. `./scripts/railway/env-sync.sh` is still how you sync env changes.
 
-### 6. Sync environment variables
+### Sync environment variables
 
 To re-sync environment variables, run the following command:
 
@@ -130,68 +167,92 @@ To re-sync environment variables, run the following command:
 ./scripts/railway/env-sync.sh
 ```
 
+### Tear down
+
+```sh
+./scripts/railway/down.sh
+```
+
+Deletes the Railway project: the agent-os service, the pgvector database, and its volume, **including all data**. It also comments out a Railway-generated `AGENTOS_URL` in your env file so a future `up.sh` derives it again. Custom domains are preserved.
+
 ### Opting out of JWT (not recommended)
 
 Set `authorization=False` in [`app/main.py`](app/main.py) and redeploy. Use this only inside a private VPC behind another auth layer. Without it, anyone who guesses your Railway domain can access your platform.
 
 ## Using the platform
 
-This platform is designed around the **create → improve → evaluate → maintain** workflow.
-
-Create agents/teams/workflows from the UI or using a coding agent, improve and evaluate with the skills, and maintain with a recurring drift sweep.
+This platform is designed so that coding agents can drive the entire **create → improve → evaluate → maintain** lifecycle for you.
 
 ### Create
 
-**From the UI.** Open **Agent Builder** and describe the job, as in the quickstart. Agent Builder pulls framework details from the Agno docs MCP, picks tools and models from the safe Studio registry, and creates components behind confirmation gates — approving the create publishes version 1 immediately, later edits stay drafts until you approve publishing, and it runs the component only when you ask.
-
-**From a coding agent.** For agents that live in the repo, open your coding agent of choice (Claude Code, Codex, Cursor) and run:
+Open your coding agent of choice (Claude Code, Codex, Cursor) and run:
 
 ```
-/create-new-agent
+/create-agent
 ```
 
-It asks a few questions, generates the agent file in `agents/`, registers it in `app/main.py`, adds quick prompts to `app/config.yaml`, restarts the container, and smoke-tests it live.
+It asks a few questions, generates the agent file in `agents/`, registers it in `app/main.py`, adds its description and quick prompts to `app/config.yaml`, restarts the container, and smoke-tests it live.
 
 ### Improve
 
-Chat with your agent at [os.agno.com](https://os.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agent-platform&utm_content=agent-platform&utm_term=railway). Run realistic prompts, try edge cases, watch the traces and sessions.
-
-Then improve your agents by running the following skills:
+Improve your agents by running the following skills:
 
 - **`/extend-agent`** — Add a tool, add a capability, refine the instructions, fix a known bug.
-- **`/improve-agent`** — Claude simulates scenarios from the agent's `INSTRUCTIONS`, runs them against the live container, judges the responses, and edits until they pass.
+- **`/improve-agent`** — Claude simulates scenarios from the agent's `INSTRUCTIONS` and its real usage recorded in the database, runs them against the live container, judges the responses, and edits until they pass.
 
 ### Evaluate
 
-Run the eval suite to check for regressions. The eval cases live in [`evals/cases.py`](evals/cases.py), tagged with profiles. The evals run on the host machine, so set up the venv with `./scripts/venv_setup.sh && source .venv/bin/activate`, then:
+Run the eval suite to check for regressions. The evals live in [`evals/cases.py`](evals/cases.py), and run history shows up at os.agno.com next to your sessions and traces.
+
+The evals run on the host machine, so set up the venv with `./scripts/venv_setup.sh && source .venv/bin/activate`, then:
 
 ```sh
-python -m evals --profile smoke     # fast checks of the self-driving surfaces
+python -m evals --tag smoke      # fast checks of the self-driving surfaces
+python -m evals --tag release    # broader pre-release confidence
+python -m evals --name <case>    # one case while iterating
+python -m evals -v               # stream the full run with rich panels
 ```
+
+If a case fails, run **`/eval-and-improve`** — it diagnoses each failure, fixes what's in scope, and loops until green. And when you build an agent of your own, **`/create-evals`** writes its coverage: it mines your real sessions for scenarios and adds cases the scheduled eval run watches from then on.
 
 ### Maintain
 
-Because the repo is managed primarily by coding agents, it moves fast. Run `/review-and-improve` before a release or after a refactor: it sweeps for drift between docs, code, and config, auto-fixes mechanical drift like stale paths and missing env vars, and flags anything bigger.
+Because the repo is managed by coding agents, it moves fast. Run `/review-and-improve` before a release or after a refactor: it sweeps for drift between docs, code, and config, auto-fixes mechanical drift like stale paths and missing env vars, and flags anything bigger.
+
+## Connect more frontends (optional)
+
+AgentOS comes with an MCP server at `/mcp` (enabled by setting `mcp_server=True` in [`app/main.py`](app/main.py)), so any MCP client can call your agents, teams, and workflows through tools like `run_agent`, `run_team`, and `run_workflow`.
+
+Register your AgentOS with the MCP clients on your machine:
+
+```sh
+uvx agno connect
+```
+
+It auto-detects Claude Code, Claude Desktop, Codex, and Cursor and registers `http://localhost:8000/mcp`. After a successful connection, open one of these apps and ask:
+
+```text
+can you access my agentos mcp?
+```
+
+**claude.ai and ChatGPT (web).** Hosted AI apps reach your platform over the internet and need an OAuth login. Deploy to production (above), add `https://<domain>/mcp` as a remote connector, and approve the consent page with your connect secret.
 
 ## Environment variables
 
-`compose.yaml` sets the dev defaults (`RUNTIME_ENV=dev`, `AGNO_DEBUG=True`, `WAIT_FOR_DB=True`) so local Docker skips JWT and waits for Postgres before serving.
-
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `OPENAI_API_KEY` | yes | none | OpenAI key for embeddings and the CRM Note Autofix agent. |
-| `OPENROUTER_API_KEY` | yes | none | OpenRouter key for the platform's default model. |
-| `OPENROUTER_MODEL` | no | `openai/gpt-4.1-mini` | Default model used by Agent Builder, Code Search, and Web Search. |
+| `OPENAI_API_KEY` | yes | none | OpenAI key for models and embeddings. |
 | `RUNTIME_ENV` | no | `prd` | `dev` disables JWT. Compose sets this to `dev` for local — never put it in an env file that syncs to Railway, or production deploys unauthenticated. |
 | `JWT_VERIFICATION_KEY` | prd | none | Public key from os.agno.com. Required when `RUNTIME_ENV=prd`, unless `JWT_JWKS_FILE` is set. |
 | `JWT_JWKS_FILE` | prd | none | Path to a JWKS file; alternative to `JWT_VERIFICATION_KEY` for production JWT verification. |
-| `AGENTOS_URL` | no | `http://127.0.0.1:8000` | Scheduler base URL. `scripts/railway/up.sh` auto-sets it to your Railway domain; set by hand only for a custom domain or tunnel. |
+| `AGENTOS_URL` | no | `http://127.0.0.1:8000` | Scheduler base URL. `scripts/railway/up.sh` auto-sets it to your Railway domain; set by hand only for a custom domain or tunnel. Also the public origin OAuth metadata derives from when `MCP_CONNECT_SECRET` is set. |
+| `MCP_CONNECT_SECRET` | no | none | If set (≥16 chars, e.g. `openssl rand -base64 32`), `/mcp` becomes its own OAuth 2.1 authorization server so claude.ai and ChatGPT (web) can connect; connecting asks for this secret on a consent page. Requires `AGENTOS_URL`. `scripts/railway/up.sh` auto-generates it on deploy. PAT and JWT bearers keep working alongside. |
+| `AGENTOS_MCP_SIGNING_KEY` | no | none | Optional high-entropy signing-key material (≥32 chars) for OAuth tokens. Unset, a strong key is generated and persisted in the database. Rotating it invalidates outstanding tokens. |
 | `ENABLE_DEPLOY_CHECK` | no | `True` | The reference deployment-check cron runs daily by default. Set `False` to disable; the workflow is runnable on demand regardless. |
-| `ENABLE_SCHEDULED_EVALS` | no | `False` | If `True`, schedules the run-evals workflow daily. Off by default because it uses model calls. |
-| `EVALS_PROFILE` | no | `smoke` | Eval profile used by the run-evals workflow. |
+| `EVALS_TAG` | no | `smoke` | Eval tag run by the run-evals workflow. |
 | `EVALS_CASE_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for run-evals runs; applies only to cases that don't set their own `timeout_seconds`. |
-| `EVALS_SUITE_TIMEOUT_SECONDS` | no | `600` | Whole-suite timeout for run-evals runs. The default fits the `smoke` profile; raise it (e.g. `900`) when scheduling `release`. |
-| `PARALLEL_API_KEY` | no | none | Authenticates the WebSearch Agent's Parallel SDK / MCP connection. |
+| `EVALS_SUITE_TIMEOUT_SECONDS` | no | `900` | Whole-suite timeout for run-evals runs; per-case timeouts are the granular limit. The default bounds the `smoke` tag's worst case (incl. builder-case teardown). |
+| `PARALLEL_API_KEY` | no | none | Authenticates Chief's and the Studio registry's web search tools (Parallel SDK when set; keyless MCP fallback). |
 | `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | no | none | Both must be set to enable the Slack interface. |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` | no | matches compose | Postgres connection. |
 | `DB_DRIVER` | no | `postgresql+psycopg` | SQLAlchemy driver. |
@@ -200,6 +261,6 @@ Because the repo is managed primarily by coding agents, it moves fast. Run `/rev
 
 ## Learn more
 
-- [Agno documentation](https://docs.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agent-platform&utm_content=agent-platform&utm_term=railway)
-- [AgentOS introduction](https://docs.agno.com/agent-os/introduction?utm_source=github&utm_medium=example-repo&utm_campaign=agent-platform&utm_content=agent-platform&utm_term=railway)
+- [Agno documentation](https://docs.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agentos-railway&utm_content=agentos-railway&utm_term=railway)
+- [AgentOS introduction](https://docs.agno.com/agent-os/introduction?utm_source=github&utm_medium=example-repo&utm_campaign=agentos-railway&utm_content=agentos-railway&utm_term=railway)
 - [Agno on GitHub](https://github.com/agno-agi/agno). Drop a star if this is useful.

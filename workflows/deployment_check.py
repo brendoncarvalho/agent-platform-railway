@@ -2,17 +2,19 @@
 Deployment Check
 ================
 
-A reference workflow that checks whether the AgentOS is wired correctly.
+A reference workflow that checks if the AgentOS is wired correctly.
 """
 
 from dataclasses import dataclass
 from os import getenv
 from urllib.parse import urlparse
 
+import httpx
 from agno.workflow.step import Step, StepInput, StepOutput
 from agno.workflow.workflow import Workflow
 from sqlalchemy import create_engine, text
 
+from app.schedules import env_flag
 from db import db_url, get_postgres_db
 
 
@@ -86,6 +88,41 @@ def _check_agentos_url() -> CheckResult:
     return _pass("AgentOS URL", f"Scheduler base URL is {agentos_url}.")
 
 
+async def _check_mcp() -> CheckResult:
+    """The MCP endpoint is the surface chat apps and coding agents depend on; a proxy
+    that strips or misroutes /mcp would otherwise pass every other check.
+
+    Async on purpose: the workflow runs in-process, so a blocking self-request would
+    deadlock the event loop that has to serve it."""
+    mcp_url = getenv("AGENTOS_URL", "http://127.0.0.1:8000").rstrip("/") + "/mcp"
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-06-18",
+            "capabilities": {},
+            "clientInfo": {"name": "deployment-check", "version": "1.0"},
+        },
+    }
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.post(
+                mcp_url,
+                json=payload,
+                headers={"Accept": "application/json, text/event-stream"},
+            )
+    except Exception as exc:
+        return _warn("MCP", f"Could not reach {mcp_url}: {exc}")
+    if response.status_code == 404:
+        return _fail("MCP", f"{mcp_url} returned 404 — MCP server not mounted, or the route is stripped upstream.")
+    if response.status_code in (401, 403):
+        return _pass("MCP", f"{mcp_url} is mounted and auth-gated (HTTP {response.status_code}).")
+    if response.status_code >= 500:
+        return _warn("MCP", f"{mcp_url} is mounted but returned HTTP {response.status_code}.")
+    return _pass("MCP", f"{mcp_url} responded (HTTP {response.status_code}).")
+
+
 def _check_slack_config() -> CheckResult:
     token = bool(getenv("SLACK_BOT_TOKEN"))
     signing_secret = bool(getenv("SLACK_SIGNING_SECRET"))
@@ -99,14 +136,14 @@ def _check_slack_config() -> CheckResult:
 def _check_reference_components() -> CheckResult:
     try:
         from agents.agent_builder import agent_builder
-        from agents.code_search import code_search
-        from agents.web_search import web_search
+        from agents.chief import chief
+        from agents.platform_manager import platform_manager
         from app.registry import registry
         from workflows.run_evals import run_evals
     except Exception as exc:
         return _fail("Components", f"Could not import reference components: {exc}")
 
-    agent_ids = sorted([agent_id for agent_id in (web_search.id, code_search.id, agent_builder.id) if agent_id])
+    agent_ids = sorted([agent_id for agent_id in (chief.id, platform_manager.id, agent_builder.id) if agent_id])
     workflow_ids = sorted([workflow_id for workflow_id in (deployment_check.id, run_evals.id) if workflow_id])
     return _pass(
         "Components",
@@ -116,16 +153,28 @@ def _check_reference_components() -> CheckResult:
     )
 
 
-def _check_schedule_flag() -> CheckResult:
-    deploy = getenv("ENABLE_DEPLOY_CHECK", "True") == "True"
-    evals = getenv("ENABLE_SCHEDULED_EVALS", "False") == "True"
-    if deploy and evals:
-        return _pass("Schedule", "Deployment-check and run-evals crons are armed.")
-    if deploy:
-        return _pass("Schedule", "Deployment-check cron is armed; run-evals cron is opt-in and disabled.")
-    if evals:
-        return _pass("Schedule", "Run-evals cron is armed; deployment-check cron is disabled.")
-    return _pass("Schedule", "Deployment-check and run-evals crons are disabled; run endpoints remain available.")
+def _check_schedules() -> CheckResult:
+    def state(name: str) -> tuple[str, bool | None]:
+        row = get_postgres_db().get_schedule_by_name(name)
+        if row is None:
+            return f"{name} not registered", None
+        enabled = bool(row["enabled"] if isinstance(row, dict) else row.enabled)
+        return f"{name} {'enabled' if enabled else 'disabled'}", enabled
+
+    try:
+        deploy_state, _deploy_enabled = state("deployment-check")
+        evals_state, evals_enabled = state("run-evals")
+    except Exception as exc:
+        return _warn("Schedule", f"Could not read schedules from the database: {exc}")
+
+    detail = f"{deploy_state}; {evals_state}."
+    if evals_enabled is None:
+        return _warn("Schedule", f"{detail} If the Database check passed, restart the API to register it.")
+    if "not registered" in deploy_state and env_flag("ENABLE_DEPLOY_CHECK", default=True):
+        return _warn("Schedule", f"{detail} If the Database check passed, restart the API to register it.")
+    if evals_enabled is False:
+        return _pass("Schedule", f"{detail} Enable run-evals from the AgentOS UI for scheduled eval runs.")
+    return _pass("Schedule", detail)
 
 
 def _format_report(checks: list[CheckResult]) -> str:
@@ -143,15 +192,16 @@ def _format_report(checks: list[CheckResult]) -> str:
     return "\n".join(lines)
 
 
-def deployment_check_step(_step_input: StepInput) -> StepOutput:
+async def deployment_check_step(_step_input: StepInput) -> StepOutput:
     """Run deterministic deployment readiness checks and return a report."""
     checks = [
         _check_database(),
         _check_runtime(),
         _check_agentos_url(),
+        await _check_mcp(),
         _check_slack_config(),
         _check_reference_components(),
-        _check_schedule_flag(),
+        _check_schedules(),
     ]
     failed = any(check.status == "FAIL" for check in checks)
     return StepOutput(content=_format_report(checks), success=not failed)
@@ -160,7 +210,6 @@ def deployment_check_step(_step_input: StepInput) -> StepOutput:
 deployment_check = Workflow(
     id="deployment-check",
     name="Deployment Check",
-    description="Check DB, auth, scheduler URL, Slack config, schedules, and reference component imports.",
     db=get_postgres_db(),
     steps=[Step(name="deployment-check", executor=deployment_check_step)],
 )

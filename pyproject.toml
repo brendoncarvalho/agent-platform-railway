@@ -1,22 +1,17 @@
 [project]
-name = "agent-platform"
+name = "agentos"
 version = "1.0.0"
-description = "Self-driving agent platform built using Agno."
+description = "AgentOS: a production API for agents."
 requires-python = ">=3.12,<4"
 readme = "README.md"
 license-files = ["LICENSE"]
 authors = [{ name = "Agno", email = "hello@agno.com" }]
 
 dependencies = [
-  "agno[os,slack]",
-  "fastapi[standard]",
-  "mcp",
+  "agno[os,mcp,slack,pgvector,psycopg]==2.8.5",
   "openai",
   "parallel-web",
-  "pgvector",
-  "psycopg[binary]",
-  "pyyaml",
-  "sqlalchemy",
+  "python-dotenv",
 ]
 
 [project.optional-dependencies]
@@ -28,10 +23,14 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["agents*", "app*", "db*", "evals*", "workflows*"]
+namespaces = false
 
 [tool.ruff]
 line-length = 120
-exclude = [".venv*"]
+exclude = [".venv*", "*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]
@@ -42,10 +41,3 @@ no_implicit_optional = true
 warn_unused_configs = true
 plugins = ["pydantic.mypy"]
 exclude = [".venv*"]
-
-[[tool.mypy.overrides]]
-module = ["pgvector.*", "agno.*", "httpx.*", "mcp.*", "sqlalchemy.*", "fastapi.*"]
-ignore_missing_imports = true
-
-[tool.uv.pip]
-no-annotate = true

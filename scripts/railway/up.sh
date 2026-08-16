@@ -7,16 +7,17 @@
 #    Usage:     ./scripts/railway/up.sh
 #    Redeploy:  ./scripts/railway/redeploy.sh
 #    Sync env:  ./scripts/railway/env-sync.sh
+#    Teardown:  ./scripts/railway/down.sh
 #
 #    Prerequisites:
 #      - Railway CLI installed
 #      - Logged in via `railway login`
-#      - OPENAI_API_KEY and OPENROUTER_API_KEY set in environment
-#        (or .env / .env.production)
+#      - OPENAI_API_KEY set in environment (or .env / .env.production)
 #
-#    Creates the public domain before deploy, writes it to AGENTOS_URL, and
-#    pauses for JWT_VERIFICATION_KEY/JWT_JWKS_FILE when production auth would
-#    otherwise prevent the first deploy from serving.
+#    Creates the public domain before deploy, writes it to AGENTOS_URL,
+#    generates MCP_CONNECT_SECRET (chat-app OAuth) into the env file when
+#    missing, and pauses for JWT_VERIFICATION_KEY/JWT_JWKS_FILE when
+#    production auth would otherwise prevent the first deploy from serving.
 #
 ############################################################################
 
@@ -66,10 +67,12 @@ persist_multiline_env_var() {
     local key="$1" value="$2" file="$3" tmp line skipping=0 value_part
     [[ -z "$file" ]] && return
     if [[ ! -f "$file" ]]; then
-        printf '%s=%s\n' "$key" "$value" > "$file"
+        printf '%s="%s"\n' "$key" "$value" > "$file"
         return
     fi
 
+    # Values are written quoted so compose's env_file parser (and every script
+    # parser here, which strips quotes) reads the multi-line PEM as one variable.
     tmp="$(mktemp)"
     while IFS= read -r line || [[ -n "$line" ]]; do
         if [[ "$skipping" == 1 ]]; then
@@ -89,7 +92,7 @@ persist_multiline_env_var() {
     done < "$file"
 
     [[ -s "$tmp" ]] && printf '\n' >> "$tmp"
-    printf '%s=%s\n' "$key" "$value" >> "$tmp"
+    printf '%s="%s"\n' "$key" "$value" >> "$tmp"
     cat "$tmp" > "$file"
     rm -f "$tmp"
 }
@@ -132,6 +135,7 @@ ${line}"
     done < "$1"
 }
 
+# shellcheck disable=SC2034
 capture_pasted_jwt_verification_key() {
     local first_line="$1" line pasted="$1"
 
@@ -169,7 +173,7 @@ fi
 
 # Preflight
 if ! command -v railway &> /dev/null; then
-    echo "Railway CLI not found. Install: https://docs.railway.app/guides/cli"
+    echo "Railway CLI not found. Install: https://docs.railway.com/cli#installing-the-cli"
     exit 1
 fi
 
@@ -178,17 +182,12 @@ if [[ -z "$OPENAI_API_KEY" ]]; then
     exit 1
 fi
 
-if [[ -z "$OPENROUTER_API_KEY" ]]; then
-    echo "OPENROUTER_API_KEY not set. Add to .env (or .env.production) or export it."
-    exit 1
-fi
-
-echo -e "${BOLD}Initializing project...${NC}"
+echo -e "${ORANGE}▸${NC} ${BOLD}Initializing project${NC}"
 echo ""
-railway init -n "agent-platform"
+railway init -n "agentos-railway"
 
 echo ""
-echo -e "${BOLD}Deploying PgVector database...${NC}"
+echo -e "${ORANGE}▸${NC} ${BOLD}Deploying PgVector database${NC}"
 echo ""
 railway add -s pgvector -i agnohq/pgvector:18 \
     -v "POSTGRES_USER=${DB_USER:-ai}" \
@@ -196,7 +195,7 @@ railway add -s pgvector -i agnohq/pgvector:18 \
     -v "POSTGRES_DB=${DB_DATABASE:-ai}"
 
 echo ""
-echo -e "${BOLD}Adding database volume...${NC}"
+echo -e "${ORANGE}▸${NC} ${BOLD}Adding database volume${NC}"
 railway service link pgvector
 railway volume add -m /var/lib/postgresql 2>/dev/null || echo -e "${DIM}Volume already exists or skipped${NC}"
 
@@ -205,11 +204,16 @@ echo -e "${DIM}Waiting 15s for database...${NC}"
 sleep 15
 
 echo ""
-echo -e "${BOLD}Creating application service...${NC}"
+echo -e "${ORANGE}▸${NC} ${BOLD}Creating application service${NC}"
 echo ""
-# Forward every relevant env var the first deploy might need. Optional
-# keys are only included when set — Railway CLI rejects empty values.
+# Forward relevant env vars the first deploy might need.
 # Use ./scripts/railway/env-sync.sh to sync the rest from .env later.
+#
+# Secrets (OPENAI_API_KEY) are deliberately NOT passed via
+# `railway add -v`: the CLI's non-interactive `add` echoes every `-v` value to
+# stdout, so the API key would print in cleartext (and into any captured deploy
+# log). They go in below via `railway variables --set … > /dev/null`, which is
+# quiet — the same path already used for AGENTOS_URL / JWT.
 RAILWAY_VARS=(
     -v "DB_USER=${DB_USER:-ai}"
     -v "DB_PASS=${DB_PASS:-ai}"
@@ -219,11 +223,7 @@ RAILWAY_VARS=(
     -v "DB_DRIVER=postgresql+psycopg"
     -v "WAIT_FOR_DB=True"
     -v "PORT=8000"
-    -v "OPENAI_API_KEY=${OPENAI_API_KEY}"
-    -v "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}"
 )
-[[ -n "$OPENROUTER_MODEL" ]] && RAILWAY_VARS+=(-v "OPENROUTER_MODEL=${OPENROUTER_MODEL}")
-[[ -n "$PARALLEL_API_KEY" ]] && RAILWAY_VARS+=(-v "PARALLEL_API_KEY=${PARALLEL_API_KEY}")
 [[ -n "$RUNTIME_ENV" ]] && RAILWAY_VARS+=(-v "RUNTIME_ENV=${RUNTIME_ENV}")
 [[ -n "$JWT_JWKS_FILE" ]] && RAILWAY_VARS+=(-v "JWT_JWKS_FILE=${JWT_JWKS_FILE}")
 # Forward AGENTOS_URL only if the env file already pinned one; otherwise it's
@@ -232,11 +232,16 @@ RAILWAY_VARS=(
 
 railway add -s agent-os "${RAILWAY_VARS[@]}"
 
+# Secret vars, set quietly so their values never show up in the terminal or logs.
+railway variables --set "OPENAI_API_KEY=${OPENAI_API_KEY}" --service agent-os > /dev/null 2>&1
+[[ -n "$PARALLEL_API_KEY" ]] && \
+    railway variables --set "PARALLEL_API_KEY=${PARALLEL_API_KEY}" --service agent-os > /dev/null 2>&1
+
 # Domain before deploy — capture it so AGENTOS_URL is set on the service
 # *before* it serves, and so os.agno.com can mint JWT_VERIFICATION_KEY against
 # the real domain.
 echo ""
-echo -e "${BOLD}Creating domain...${NC}"
+echo -e "${ORANGE}▸${NC} ${BOLD}Creating domain${NC}"
 echo ""
 DOMAIN_OUTPUT="$(railway domain --service agent-os 2>&1 || true)"
 echo "$DOMAIN_OUTPUT"
@@ -263,6 +268,20 @@ elif [[ -z "$AGENTOS_URL" ]]; then
     echo -e "${DIM}  (or add it to ${ENV_FILE:-.env.production} and run ./scripts/railway/env-sync.sh)${NC}"
 fi
 
+# MCP OAuth — claude.ai and ChatGPT (web) connect over OAuth only, and the
+# consent page is gated by MCP_CONNECT_SECRET, so the user must create the secret manually.
+# We generate a secret on behalf of the user when the env file doesn't have one
+if [[ -z "$MCP_CONNECT_SECRET" && ( -n "$AGENTOS_URL" || -n "$APP_URL" ) ]]; then
+    MCP_CONNECT_SECRET="$(openssl rand -base64 32)"
+    export MCP_CONNECT_SECRET
+    ENV_FILE="${ENV_FILE:-.env.production}"
+    [[ -f "$ENV_FILE" ]] || : > "$ENV_FILE"
+    persist_env_var MCP_CONNECT_SECRET "$MCP_CONNECT_SECRET" "$ENV_FILE"
+    echo -e "${DIM}Generated MCP_CONNECT_SECRET -> ${ENV_FILE} + Railway (shown in the summary below)${NC}"
+fi
+[[ -n "$MCP_CONNECT_SECRET" ]] && \
+    railway variables --set "MCP_CONNECT_SECRET=${MCP_CONNECT_SECRET}" --service agent-os > /dev/null 2>&1
+
 AUTH_REQUIRES_JWT=1
 [[ "${RUNTIME_ENV:-prd}" == "dev" ]] && AUTH_REQUIRES_JWT=""
 
@@ -271,9 +290,9 @@ AUTH_REQUIRES_JWT=1
 # mint the key, save it, and have this first deploy come up serving.
 if [[ -n "$AUTH_REQUIRES_JWT" && -z "$JWT_VERIFICATION_KEY" && -z "$JWT_JWKS_FILE" && -t 0 ]]; then
     echo ""
-    echo -e "${BOLD}JWT_VERIFICATION_KEY not set${NC} — AgentOS won't serve production traffic without auth."
+    echo -e "${ORANGE}▸${NC} ${BOLD}JWT_VERIFICATION_KEY not set${NC} — AgentOS won't serve production traffic without auth."
     echo -e "  1. Open ${BOLD}https://os.agno.com${NC} -> Connect OS -> Live -> enter ${APP_URL:-your Railway domain}"
-    echo -e "  2. Name it ${BOLD}Live Agent Platform${NC}"
+    echo -e "  2. Name it ${BOLD}Live AgentOS${NC}"
     echo -e "  3. Note: Live AgentOS Connections are a paid feature; use ${BOLD}PLATFORM30${NC} to get 1 month off"
     echo -e "  4. Go to Settings -> OS & Security -> turn ${BOLD}Token-Based Authorization (JWT)${NC} on"
     echo -e "  5. Copy the public key"
@@ -315,7 +334,7 @@ elif [[ -n "$AUTH_REQUIRES_JWT" ]]; then
 fi
 
 echo ""
-echo -e "${BOLD}Deploying application...${NC}"
+echo -e "${ORANGE}▸${NC} ${BOLD}Deploying application${NC}"
 echo ""
 railway up --service agent-os -d
 
@@ -323,5 +342,12 @@ echo ""
 echo -e "${BOLD}Done.${NC} The app is building — give it a few minutes."
 [[ -n "$APP_URL" ]] && echo -e "${DIM}URL:            ${APP_URL}${NC}"
 echo -e "${DIM}Logs:           railway logs --service agent-os${NC}"
-echo -e "${DIM}Sync env vars:  ./scripts/railway/env-sync.sh  (defaults to .env.production)${NC}"
+echo -e "${DIM}Sync env vars:  ./scripts/railway/env-sync.sh${NC}"
+[[ -n "$APP_URL" ]] && echo -e "${DIM}Connect apps:   uvx agno connect --url ${APP_URL}${NC}"
+if [[ -n "$APP_URL" && -n "$MCP_CONNECT_SECRET" ]]; then
+    echo -e "${DIM}Chat apps:      add ${APP_URL}/mcp as a custom connector in claude.ai / ChatGPT${NC}"
+    echo -e "${DIM}                (leave the optional OAuth client ID/secret fields empty).${NC}"
+    echo -e "${DIM}                Then click Connect and approve the consent page with this secret:${NC}"
+    echo -e "${BOLD}                ${MCP_CONNECT_SECRET}${NC}"
+fi
 echo ""
