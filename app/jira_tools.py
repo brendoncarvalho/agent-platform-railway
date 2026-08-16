@@ -55,7 +55,10 @@ def _jira_required_state() -> dict[str, bool]:
         return {"JIRA_AUTH_TYPE_supported": False}
     if auth_type == "oauth2":
         return {
-            "JIRA_OAUTH_ACCESS_TOKEN": bool(getenv("JIRA_OAUTH_ACCESS_TOKEN")),
+            "JIRA_OAUTH_ACCESS_TOKEN_or_CLIENT_CREDENTIALS": bool(
+                getenv("JIRA_OAUTH_ACCESS_TOKEN")
+                or (getenv("JIRA_OAUTH_CLIENT_ID") and getenv("JIRA_OAUTH_CLIENT_SECRET"))
+            ),
             "JIRA_CLOUD_ID_or_JIRA_SERVER_URL": bool(getenv("JIRA_CLOUD_ID") or getenv("JIRA_SERVER_URL")),
         }
     if auth_type == "oauth1":
@@ -95,12 +98,40 @@ def check_jira_configuration() -> str:
         "username_set": bool(getenv("JIRA_USERNAME")),
         "basic_secret_set": bool(getenv("JIRA_TOKEN") or getenv("JIRA_PASSWORD")),
         "oauth_access_token_set": bool(getenv("JIRA_OAUTH_ACCESS_TOKEN")),
+        "oauth_client_id_set": bool(getenv("JIRA_OAUTH_CLIENT_ID")),
+        "oauth_client_secret_set": bool(getenv("JIRA_OAUTH_CLIENT_SECRET")),
         "oauth_access_token_secret_set": bool(getenv("JIRA_OAUTH_ACCESS_TOKEN_SECRET")),
         "oauth_consumer_key_set": bool(getenv("JIRA_OAUTH_CONSUMER_KEY")),
         "oauth_key_cert_set": bool(getenv("JIRA_OAUTH_KEY_CERT") or getenv("JIRA_OAUTH_KEY_CERT_FILE")),
         "cloud_id_set": bool(getenv("JIRA_CLOUD_ID")),
     }
     return json.dumps(payload, ensure_ascii=False)
+
+
+def _jira_oauth2_access_token() -> str:
+    access_token = getenv("JIRA_OAUTH_ACCESS_TOKEN")
+    if access_token:
+        return access_token
+
+    import requests
+
+    response = requests.post(
+        "https://auth.atlassian.com/oauth/token",
+        data={
+            "client_id": getenv("JIRA_OAUTH_CLIENT_ID", ""),
+            "client_secret": getenv("JIRA_OAUTH_CLIENT_SECRET", ""),
+            "grant_type": "client_credentials",
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    token = payload.get("access_token")
+    if not token:
+        msg = "A Atlassian não retornou access_token ao trocar as credenciais OAuth 2.0."
+        raise RuntimeError(msg)
+    return str(token)
 
 
 def _lookup_jira_cloud_id(access_token: str) -> str:
@@ -143,7 +174,7 @@ def _jira_client() -> Any:
 
     auth_type = _jira_auth_type()
     if auth_type == "oauth2":
-        access_token = getenv("JIRA_OAUTH_ACCESS_TOKEN", "")
+        access_token = _jira_oauth2_access_token()
         cloud_id = getenv("JIRA_CLOUD_ID") or _lookup_jira_cloud_id(access_token)
         jira = JIRA(
             server=f"{JIRA_OAUTH2_API_BASE}/{cloud_id}",
@@ -185,8 +216,9 @@ def _jira_error_payload(error: Exception, operation: str) -> str:
     message = getattr(error, "text", None) or str(error)
     if _jira_auth_type() == "oauth2":
         suggestion = (
-            "Verifique se JIRA_OAUTH_ACCESS_TOKEN ainda é válido, se JIRA_CLOUD_ID aponta para o site correto "
-            "e se o app OAuth possui escopos/permissões para acessar esse chamado/projeto."
+            "Verifique se JIRA_OAUTH_ACCESS_TOKEN ainda é válido ou se JIRA_OAUTH_CLIENT_ID/"
+            "JIRA_OAUTH_CLIENT_SECRET conseguem emitir token, se JIRA_CLOUD_ID aponta para o site correto "
+            "e se o OAuth possui escopos/permissões para acessar esse chamado/projeto."
         )
     elif _jira_auth_type() == "oauth1":
         suggestion = (

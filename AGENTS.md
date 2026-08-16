@@ -207,7 +207,8 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 | `PARALLEL_API_KEY` | no | — | Authenticates Chief's and the Studio registry's web search tools (Parallel SDK when set; keyless MCP fallback with a lower rate ceiling). |
 | `JIRA_AUTH_TYPE` | no | inferred | Jira auth mode: `basic`, `oauth2`, or `oauth1`. Inferred from the OAuth variables when omitted; otherwise defaults to `basic`. |
 | `JIRA_SERVER_URL` / `JIRA_USERNAME` / `JIRA_TOKEN` or `JIRA_PASSWORD` | no | none | Basic Jira auth. When set, exposes guarded Jira tools in the Studio registry. Defaults to read-only search/get issue. |
-| `JIRA_OAUTH_ACCESS_TOKEN` / `JIRA_CLOUD_ID` | no | none | Jira Cloud OAuth 2.0 (3LO). Set `JIRA_AUTH_TYPE=oauth2`; `JIRA_CLOUD_ID` is optional when `JIRA_SERVER_URL` can select one accessible Atlassian site. |
+| `JIRA_OAUTH_CLIENT_ID` / `JIRA_OAUTH_CLIENT_SECRET` / `JIRA_CLOUD_ID` | no | none | Jira Cloud OAuth 2.0 service-account credentials. Set `JIRA_AUTH_TYPE=oauth2`; the app requests short-lived access tokens with `grant_type=client_credentials`. |
+| `JIRA_OAUTH_ACCESS_TOKEN` | no | none | Optional direct Jira Cloud OAuth 2.0 bearer token for temporary/manual tests. Used instead of client credentials when set. |
 | `JIRA_OAUTH_ACCESS_TOKEN_SECRET` / `JIRA_OAUTH_CONSUMER_KEY` / `JIRA_OAUTH_KEY_CERT` or `JIRA_OAUTH_KEY_CERT_FILE` | no | none | Jira OAuth 1.0 credentials. Set `JIRA_AUTH_TYPE=oauth1`; `JIRA_SERVER_URL` is also required. |
 | `JIRA_ENABLE_MUTATIONS` | no | `False` | Set `True` to expose guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content. |
 | `SLACK_BOT_TOKEN` | no | — | Bot token. Set with signing secret to enable the Slack interface. |
