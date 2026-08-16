@@ -214,7 +214,7 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 | `JIRA_OAUTH_ACCESS_TOKEN_SECRET` / `JIRA_OAUTH_CONSUMER_KEY` / `JIRA_OAUTH_KEY_CERT` or `JIRA_OAUTH_KEY_CERT_FILE` | no | none | Jira OAuth 1.0 credentials. Set `JIRA_AUTH_TYPE=oauth1`; `JIRA_SERVER_URL` is also required. |
 | `JIRA_ENABLE_MUTATIONS` | no | `False` | Set `True` to expose guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content. |
 | `ROCKETCHAT_WEBHOOK_TOKEN` | no | — | Enables the Rocket.Chat outgoing webhook endpoint at `/rocketchat/webhook`. Set this to the token configured in Rocket.Chat. |
-| `ROCKETCHAT_AGENT_ID` | no | `jira-ticket-responder` | Agent used for Rocket.Chat messages. Options: `jira-ticket-responder`, `chief`, `general-chat`. |
+| `ROCKETCHAT_AGENT_ID` | no | `jira-ticket-responder` | Agent or team used for Rocket.Chat messages. Options: `ti-team`, `jira-ticket-responder`, `chief`, `general-chat`. |
 | `ROCKETCHAT_BOT_USERNAME` | no | — | Optional bot username to strip from messages, for example when Rocket.Chat sends `@bot text`. |
 | `SLACK_BOT_TOKEN` | no | — | Bot token. Set with signing secret to enable the optional Slack interface. |
 | `SLACK_SIGNING_SECRET` | no | — | Signing secret. Both it and the bot token must be set for the optional Slack interface to load. |
@@ -274,8 +274,8 @@ Local smoke check: `./scripts/mcp_check.sh` — handshake, tool count, and one q
 Set `ROCKETCHAT_WEBHOOK_TOKEN` and restart to enable `POST /rocketchat/webhook`.
 Configure a Rocket.Chat **Outgoing WebHook** pointing at
 `https://<agentos-domain>/rocketchat/webhook` and use the same token.
-`ROCKETCHAT_AGENT_ID` selects the agent (`jira-ticket-responder`, `chief`, or
-`general-chat`) and defaults to Jira support. `ROCKETCHAT_BOT_USERNAME` is
+`ROCKETCHAT_AGENT_ID` selects the agent or team (`ti-team`, `jira-ticket-responder`,
+`chief`, or `general-chat`) and defaults to Jira support. `ROCKETCHAT_BOT_USERNAME` is
 optional and strips `@botname` from incoming messages before they reach the agent.
 
 Set `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` and restart. The default wiring in `app/main.py` routes Slack messages to `chief`, so the mascot lives where the team already talks — each sender keeps their private profile and memory (identity is per-sender; sessions are thread-scoped — a new top-level mention starts a fresh session, replies within that thread share it) while notes and entities are shared. Change the `agent=` arg to point at another agent. See the [agno Slack interface docs](https://docs.agno.com/agent-os/interfaces/overview) for the Slack-side app setup.

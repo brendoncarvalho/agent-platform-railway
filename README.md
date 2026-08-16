@@ -247,8 +247,8 @@ https://<agentos-domain>/rocketchat/webhook
 ```
 
 Set the webhook token in `ROCKETCHAT_WEBHOOK_TOKEN`. By default messages go to
-`jira-ticket-responder`; change `ROCKETCHAT_AGENT_ID` to `chief` or `general-chat`
-if needed.
+`jira-ticket-responder`; change `ROCKETCHAT_AGENT_ID` to `ti-team`, `chief`, or
+`general-chat` if needed.
 
 ## Environment variables
 
@@ -275,7 +275,7 @@ if needed.
 | `JIRA_OAUTH_ACCESS_TOKEN_SECRET` / `JIRA_OAUTH_CONSUMER_KEY` / `JIRA_OAUTH_KEY_CERT` or `JIRA_OAUTH_KEY_CERT_FILE` | no | none | Jira OAuth 1.0 credentials. Set `JIRA_AUTH_TYPE=oauth1`; `JIRA_SERVER_URL` is also required. |
 | `JIRA_ENABLE_MUTATIONS` | no | `False` | Set `True` to expose guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content. |
 | `ROCKETCHAT_WEBHOOK_TOKEN` | no | none | Enables the Rocket.Chat outgoing webhook endpoint at `/rocketchat/webhook`. Set this to the token configured in Rocket.Chat. |
-| `ROCKETCHAT_AGENT_ID` | no | `jira-ticket-responder` | Agent used for Rocket.Chat messages. Options: `jira-ticket-responder`, `chief`, `general-chat`. |
+| `ROCKETCHAT_AGENT_ID` | no | `jira-ticket-responder` | Agent or team used for Rocket.Chat messages. Options: `ti-team`, `jira-ticket-responder`, `chief`, `general-chat`. |
 | `ROCKETCHAT_BOT_USERNAME` | no | none | Optional bot username to strip from messages, for example when Rocket.Chat sends `@bot text`. |
 | `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | no | none | Both must be set to enable the optional Slack interface. |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` | no | matches compose | Postgres connection. |

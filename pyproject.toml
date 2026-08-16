@@ -12,7 +12,9 @@ dependencies = [
   "jira==3.10.5",
   "openai",
   "parallel-web",
+  "python-docx",
   "python-dotenv",
+  "reportlab",
 ]
 
 [project.optional-dependencies]

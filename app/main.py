@@ -17,6 +17,7 @@ from agents.crm_note_autofix import crm_note_autofix
 from agents.general_chat import general_chat
 from agents.jira_ticket_responder import jira_ticket_responder
 from agents.platform_manager import platform_manager
+from agents.ti_team import ti_team
 from app.registry import registry
 from app.schedules import register_schedules
 from db import get_postgres_db
@@ -120,6 +121,7 @@ agent_os = AgentOS(
         general_chat,
         jira_ticket_responder,
     ],
+    teams=[ti_team],
     workflows=[deployment_check, run_evals],
     interfaces=interfaces,
     registry=registry,

@@ -43,6 +43,16 @@ manifest:
       - "Busque os chamados abertos do projeto SUP e prepare respostas"
       - "Edite o comentario de IA no chamado JIRA-123"
 
+  # --- Teams ---
+
+  ti-team:
+    description: "Time de atendimento de TI em portugues. Coordena triagem, Jira, diagnosticos e arquivos."
+    quick_prompts:
+      - "Triar este chamado de TI"
+      - "Verifique o status do chamado JIRA-123 e sugira a resposta"
+      - "Gere um PDF com o resumo deste atendimento"
+      - "Diagnostique este problema na plataforma"
+
   # --- Workflows ---
 
   deployment-check:

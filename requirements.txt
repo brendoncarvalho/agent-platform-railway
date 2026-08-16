@@ -135,6 +135,8 @@ joserfc==1.7.2
     # via
     #   authlib
     #   fastmcp-slim
+lxml==6.1.1
+    # via python-docx
 oauthlib==3.3.1
     # via requests-oauthlib
 jsonref==1.1.0
@@ -206,6 +208,8 @@ pathable==0.6.0
     # via jsonschema-path
 pgvector==0.5.0
     # via agno
+pillow==12.3.0
+    # via reportlab
 platformdirs==4.10.0
     # via fastmcp-slim
 propcache==0.5.2
@@ -249,6 +253,8 @@ pyperclip==1.11.0
     # via fastmcp-slim
 python-dateutil==2.9.0.post0
     # via croniter
+python-docx==1.2.0
+    # via agentos (pyproject.toml)
 python-dotenv==1.2.2
     # via
     #   agentos (pyproject.toml)
@@ -271,6 +277,8 @@ referencing==0.37.0
     #   jsonschema
     #   jsonschema-path
     #   jsonschema-specifications
+reportlab==5.0.0
+    # via agentos (pyproject.toml)
 requests==2.34.2
     # via
     #   jira

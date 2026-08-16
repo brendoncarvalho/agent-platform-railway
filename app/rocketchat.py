@@ -14,11 +14,13 @@ from fastapi import APIRouter, HTTPException, Request
 from agents.chief import chief
 from agents.general_chat import general_chat
 from agents.jira_ticket_responder import jira_ticket_responder
+from agents.ti_team import ti_team
 
 ROCKETCHAT_AGENT_MAP = {
     "chief": chief,
     "general-chat": general_chat,
     "jira-ticket-responder": jira_ticket_responder,
+    "ti-team": ti_team,
 }
 
 
