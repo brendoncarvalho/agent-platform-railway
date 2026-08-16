@@ -74,18 +74,26 @@ def _jira_client() -> Any:
 def _jira_error_payload(error: Exception, operation: str) -> str:
     response = getattr(error, "response", None)
     headers = getattr(response, "headers", {}) or {}
+    message = getattr(error, "text", None) or str(error)
+    suggestion = (
+        "Verifique se JIRA_USERNAME é o e-mail da conta Atlassian, se JIRA_TOKEN "
+        "é um API token válido dessa mesma conta e se a conta tem permissão para ver o chamado/projeto."
+    )
+    if "consultas JQL ilimitadas" in message or "unrestricted jql" in message.lower():
+        suggestion = (
+            "A autenticação funcionou, mas o Jira recusou uma JQL sem restrição. "
+            "Use um filtro como 'project = TI', 'updated >= -30d', "
+            "'assignee = currentUser()' ou 'reporter = currentUser()'."
+        )
     payload = {
         "ok": False,
         "operation": operation,
         "status_code": getattr(error, "status_code", None),
         "url": getattr(error, "url", None),
-        "message": getattr(error, "text", None) or str(error),
+        "message": message,
         "login_reason": headers.get("X-Seraph-Loginreason"),
         "atl_request_id": headers.get("Atl-Request-Id"),
-        "suggestion": (
-            "Verifique se JIRA_USERNAME é o e-mail da conta Atlassian, se JIRA_TOKEN "
-            "é um API token válido dessa mesma conta e se a conta tem permissão para ver o chamado/projeto."
-        ),
+        "suggestion": suggestion,
     }
     return json.dumps(payload, ensure_ascii=False, default=str)
 

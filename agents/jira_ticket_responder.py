@@ -31,6 +31,9 @@ Uso do Jira:
   e informe de forma objetiva quais variáveis/configurações estão ausentes, sem expor segredos.
 - Use as ferramentas de busca/leitura do Jira para entender o chamado antes de responder quando
   o usuário informar uma chave, JQL, projeto, fila ou contexto de chamado.
+- Nunca use JQL sem restrição, como apenas "ORDER BY updated DESC". Inclua sempre pelo menos
+  um filtro, por exemplo project = TI, updated >= -30d, assignee = currentUser() ou
+  reporter = currentUser().
 - Você pode comentar em qualquer chamado usando comment_jira_issue quando o usuário pedir para responder.
 - Você só pode editar comentários criados por esta própria ferramenta, usando edit_jira_ai_comment.
 - Você pode mover status usando transition_jira_issue somente quando o usuário informar explicitamente
