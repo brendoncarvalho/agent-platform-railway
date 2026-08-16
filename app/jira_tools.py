@@ -11,6 +11,7 @@ from typing import Any
 
 JIRA_AI_COMMENT_MARKER = "<!-- agentos-ai-comment -->"
 JIRA_AI_COMMENT_FOOTER = "Informação gerada por uma ferramenta de IA."
+JIRA_OAUTH2_API_BASE = "https://api.atlassian.com/ex/jira"
 
 
 def env_flag(name: str, default: bool = False) -> bool:
@@ -20,12 +21,60 @@ def env_flag(name: str, default: bool = False) -> bool:
     return value.strip().lower() in ("1", "true", "yes")
 
 
+def _normalized_url(url: str | None) -> str:
+    return (url or "").strip().rstrip("/").lower()
+
+
+def _jira_auth_type() -> str:
+    explicit = getenv("JIRA_AUTH_TYPE", "").strip().lower()
+    if explicit:
+        return explicit
+    if getenv("JIRA_OAUTH_ACCESS_TOKEN_SECRET") or getenv("JIRA_OAUTH_CONSUMER_KEY"):
+        return "oauth1"
+    if getenv("JIRA_OAUTH_ACCESS_TOKEN"):
+        return "oauth2"
+    return "basic"
+
+
+def _jira_oauth_key_cert() -> str:
+    key_cert = getenv("JIRA_OAUTH_KEY_CERT")
+    if key_cert:
+        return key_cert.replace("\\n", "\n")
+
+    key_cert_file = getenv("JIRA_OAUTH_KEY_CERT_FILE")
+    if not key_cert_file:
+        return ""
+
+    with open(key_cert_file, encoding="utf-8") as cert_file:
+        return cert_file.read()
+
+
+def _jira_required_state() -> dict[str, bool]:
+    auth_type = _jira_auth_type()
+    if auth_type not in ("basic", "oauth2", "oauth1"):
+        return {"JIRA_AUTH_TYPE_supported": False}
+    if auth_type == "oauth2":
+        return {
+            "JIRA_OAUTH_ACCESS_TOKEN": bool(getenv("JIRA_OAUTH_ACCESS_TOKEN")),
+            "JIRA_CLOUD_ID_or_JIRA_SERVER_URL": bool(getenv("JIRA_CLOUD_ID") or getenv("JIRA_SERVER_URL")),
+        }
+    if auth_type == "oauth1":
+        return {
+            "JIRA_SERVER_URL": bool(getenv("JIRA_SERVER_URL")),
+            "JIRA_OAUTH_ACCESS_TOKEN": bool(getenv("JIRA_OAUTH_ACCESS_TOKEN")),
+            "JIRA_OAUTH_ACCESS_TOKEN_SECRET": bool(getenv("JIRA_OAUTH_ACCESS_TOKEN_SECRET")),
+            "JIRA_OAUTH_CONSUMER_KEY": bool(getenv("JIRA_OAUTH_CONSUMER_KEY")),
+            "JIRA_OAUTH_KEY_CERT_or_FILE": bool(getenv("JIRA_OAUTH_KEY_CERT") or getenv("JIRA_OAUTH_KEY_CERT_FILE")),
+        }
+    return {
+        "JIRA_SERVER_URL": bool(getenv("JIRA_SERVER_URL")),
+        "JIRA_USERNAME": bool(getenv("JIRA_USERNAME")),
+        "JIRA_TOKEN_or_JIRA_PASSWORD": bool(getenv("JIRA_TOKEN") or getenv("JIRA_PASSWORD")),
+    }
+
+
 def jira_credentials_configured() -> bool:
-    return bool(
-        getenv("JIRA_SERVER_URL")
-        and getenv("JIRA_USERNAME")
-        and (getenv("JIRA_TOKEN") or getenv("JIRA_PASSWORD"))
-    )
+    return all(_jira_required_state().values())
 
 
 def check_jira_configuration() -> str:
@@ -35,29 +84,88 @@ def check_jira_configuration() -> str:
     conexão falhar. Retorna quais variáveis obrigatórias estão configuradas,
     quais estão ausentes e se mutações guardadas estão habilitadas.
     """
-    required_state = {
-        "JIRA_SERVER_URL": bool(getenv("JIRA_SERVER_URL")),
-        "JIRA_USERNAME": bool(getenv("JIRA_USERNAME")),
-        "JIRA_TOKEN_or_JIRA_PASSWORD": bool(getenv("JIRA_TOKEN") or getenv("JIRA_PASSWORD")),
-    }
+    required_state = _jira_required_state()
     missing = [name for name, configured in required_state.items() if not configured]
     payload = {
         "configured": not missing,
         "missing": missing,
+        "auth_type": _jira_auth_type(),
         "mutations_enabled": env_flag("JIRA_ENABLE_MUTATIONS", default=False),
-        "server_url_set": required_state["JIRA_SERVER_URL"],
-        "username_set": required_state["JIRA_USERNAME"],
-        "secret_set": required_state["JIRA_TOKEN_or_JIRA_PASSWORD"],
+        "server_url_set": bool(getenv("JIRA_SERVER_URL")),
+        "username_set": bool(getenv("JIRA_USERNAME")),
+        "basic_secret_set": bool(getenv("JIRA_TOKEN") or getenv("JIRA_PASSWORD")),
+        "oauth_access_token_set": bool(getenv("JIRA_OAUTH_ACCESS_TOKEN")),
+        "oauth_access_token_secret_set": bool(getenv("JIRA_OAUTH_ACCESS_TOKEN_SECRET")),
+        "oauth_consumer_key_set": bool(getenv("JIRA_OAUTH_CONSUMER_KEY")),
+        "oauth_key_cert_set": bool(getenv("JIRA_OAUTH_KEY_CERT") or getenv("JIRA_OAUTH_KEY_CERT_FILE")),
+        "cloud_id_set": bool(getenv("JIRA_CLOUD_ID")),
     }
     return json.dumps(payload, ensure_ascii=False)
+
+
+def _lookup_jira_cloud_id(access_token: str) -> str:
+    import requests
+
+    response = requests.get(
+        "https://api.atlassian.com/oauth/token/accessible-resources",
+        headers={"Authorization": f"Bearer {access_token}", "Accept": "application/json"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    resources = response.json()
+    if not isinstance(resources, list) or not resources:
+        msg = "Nenhum recurso Jira Cloud acessível foi retornado para o token OAuth configurado."
+        raise RuntimeError(msg)
+
+    server_url = _normalized_url(getenv("JIRA_SERVER_URL"))
+    if server_url:
+        for resource in resources:
+            if _normalized_url(resource.get("url")) == server_url:
+                return str(resource["id"])
+        msg = (
+            "O token OAuth é válido, mas não retornou um recurso com a URL de JIRA_SERVER_URL. "
+            "Defina JIRA_CLOUD_ID explicitamente ou confirme se o usuário autorizou este site Jira."
+        )
+        raise RuntimeError(msg)
+
+    if len(resources) == 1:
+        return str(resources[0]["id"])
+
+    msg = (
+        "O token OAuth acessa mais de um site Atlassian. Defina JIRA_CLOUD_ID ou JIRA_SERVER_URL "
+        "para selecionar o Jira correto."
+    )
+    raise RuntimeError(msg)
 
 
 def _jira_client() -> Any:
     from jira import JIRA
 
-    username = getenv("JIRA_USERNAME", "")
-    secret = getenv("JIRA_TOKEN") or getenv("JIRA_PASSWORD", "")
-    jira = JIRA(server=getenv("JIRA_SERVER_URL"), basic_auth=(username, secret))
+    auth_type = _jira_auth_type()
+    if auth_type == "oauth2":
+        access_token = getenv("JIRA_OAUTH_ACCESS_TOKEN", "")
+        cloud_id = getenv("JIRA_CLOUD_ID") or _lookup_jira_cloud_id(access_token)
+        jira = JIRA(
+            server=f"{JIRA_OAUTH2_API_BASE}/{cloud_id}",
+            token_auth=access_token,
+            rest_api_version="3",
+            max_retries=3,
+        )
+    elif auth_type == "oauth1":
+        oauth_dict = {
+            "access_token": getenv("JIRA_OAUTH_ACCESS_TOKEN", ""),
+            "access_token_secret": getenv("JIRA_OAUTH_ACCESS_TOKEN_SECRET", ""),
+            "consumer_key": getenv("JIRA_OAUTH_CONSUMER_KEY", ""),
+            "key_cert": _jira_oauth_key_cert(),
+        }
+        jira = JIRA(server=getenv("JIRA_SERVER_URL"), oauth=oauth_dict, max_retries=3)
+    elif auth_type == "basic":
+        username = getenv("JIRA_USERNAME", "")
+        secret = getenv("JIRA_TOKEN") or getenv("JIRA_PASSWORD", "")
+        jira = JIRA(server=getenv("JIRA_SERVER_URL"), basic_auth=(username, secret), max_retries=3)
+    else:
+        msg = "JIRA_AUTH_TYPE deve ser 'basic', 'oauth2' ou 'oauth1'."
+        raise RuntimeError(msg)
 
     # Defensive compatibility guard for python-jira ResilientSession. Without
     # these attributes some error paths raise AttributeError before exposing the
@@ -75,10 +183,21 @@ def _jira_error_payload(error: Exception, operation: str) -> str:
     response = getattr(error, "response", None)
     headers = getattr(response, "headers", {}) or {}
     message = getattr(error, "text", None) or str(error)
-    suggestion = (
-        "Verifique se JIRA_USERNAME é o e-mail da conta Atlassian, se JIRA_TOKEN "
-        "é um API token válido dessa mesma conta e se a conta tem permissão para ver o chamado/projeto."
-    )
+    if _jira_auth_type() == "oauth2":
+        suggestion = (
+            "Verifique se JIRA_OAUTH_ACCESS_TOKEN ainda é válido, se JIRA_CLOUD_ID aponta para o site correto "
+            "e se o app OAuth possui escopos/permissões para acessar esse chamado/projeto."
+        )
+    elif _jira_auth_type() == "oauth1":
+        suggestion = (
+            "Verifique access token, access token secret, consumer key, chave privada OAuth e permissões "
+            "da conta autorizada no Jira."
+        )
+    else:
+        suggestion = (
+            "Verifique se JIRA_USERNAME é o e-mail da conta Atlassian, se JIRA_TOKEN "
+            "é um API token válido dessa mesma conta e se a conta tem permissão para ver o chamado/projeto."
+        )
     if "consultas JQL ilimitadas" in message or "unrestricted jql" in message.lower():
         suggestion = (
             "A autenticação funcionou, mas o Jira recusou uma JQL sem restrição. "

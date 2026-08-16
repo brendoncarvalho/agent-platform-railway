@@ -254,7 +254,10 @@ can you access my agentos mcp?
 | `EVALS_CASE_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for run-evals runs; applies only to cases that don't set their own `timeout_seconds`. |
 | `EVALS_SUITE_TIMEOUT_SECONDS` | no | `900` | Whole-suite timeout for run-evals runs; per-case timeouts are the granular limit. The default bounds the `smoke` tag's worst case (incl. builder-case teardown). |
 | `PARALLEL_API_KEY` | no | none | Authenticates Chief's and the Studio registry's web search tools (Parallel SDK when set; keyless MCP fallback). |
-| `JIRA_SERVER_URL` / `JIRA_USERNAME` / `JIRA_TOKEN` or `JIRA_PASSWORD` | no | none | When set, exposes guarded Jira tools in the Studio registry. Defaults to read-only search/get issue. |
+| `JIRA_AUTH_TYPE` | no | inferred | Jira auth mode: `basic`, `oauth2`, or `oauth1`. Inferred from the OAuth variables when omitted; otherwise defaults to `basic`. |
+| `JIRA_SERVER_URL` / `JIRA_USERNAME` / `JIRA_TOKEN` or `JIRA_PASSWORD` | no | none | Basic Jira auth. When set, exposes guarded Jira tools in the Studio registry. Defaults to read-only search/get issue. |
+| `JIRA_OAUTH_ACCESS_TOKEN` / `JIRA_CLOUD_ID` | no | none | Jira Cloud OAuth 2.0 (3LO). Set `JIRA_AUTH_TYPE=oauth2`; `JIRA_CLOUD_ID` is optional when `JIRA_SERVER_URL` can select one accessible Atlassian site. |
+| `JIRA_OAUTH_ACCESS_TOKEN_SECRET` / `JIRA_OAUTH_CONSUMER_KEY` / `JIRA_OAUTH_KEY_CERT` or `JIRA_OAUTH_KEY_CERT_FILE` | no | none | Jira OAuth 1.0 credentials. Set `JIRA_AUTH_TYPE=oauth1`; `JIRA_SERVER_URL` is also required. |
 | `JIRA_ENABLE_MUTATIONS` | no | `False` | Set `True` to expose guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content. |
 | `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | no | none | Both must be set to enable the Slack interface. |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` | no | matches compose | Postgres connection. |
