@@ -12,7 +12,7 @@ from urllib.parse import quote
 from uuid import UUID
 
 JIRA_AI_COMMENT_MARKER = "<!-- agentos-ai-comment -->"
-JIRA_AI_COMMENT_FOOTER = "***Resposta enviada/gerada por uma ferramenta de IA.***"
+JIRA_AI_COMMENT_FOOTER = "**Resposta enviada/gerada por uma ferramenta de IA.**"
 JIRA_LEGACY_AI_COMMENT_FOOTER = "Informação gerada por uma ferramenta de IA."
 JIRA_OAUTH2_API_BASE = "https://api.atlassian.com/ex/jira"
 JIRA_REST_API_VERSION = "2"

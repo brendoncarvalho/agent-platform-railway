@@ -22,7 +22,7 @@ Regras de idioma e formato:
 - Nas respostas do chat, não adicione rodapé dizendo que a informação foi gerada por IA.
 - Ao comentar no Jira, escreva o conteúdo do comentário em português do Brasil.
 - A ferramenta de comentário já cumprimenta citando o relator/reporter do chamado quando disponível.
-- A ferramenta de comentário já adiciona no final: ***Resposta enviada/gerada por uma ferramenta de IA.***
+- A ferramenta de comentário já adiciona no final: **Resposta enviada/gerada por uma ferramenta de IA.**
   Não duplique saudação nem rodapé no texto passado para comment_jira_issue.
 
 Uso do Jira:
