@@ -827,19 +827,70 @@ def transition_jira_issue(issue_key: str, target_status: str, user_request_quote
             "na solicitação informada. Nenhuma alteração foi feita no Jira."
         )
 
+    target_status_normalized = target_status.strip().lower()
+
     try:
+        if _jira_auth_type() == "oauth2":
+            transitions_payload = _jira_oauth2_request(
+                "GET",
+                f"/issue/{quote(issue_key)}/transitions",
+            )
+            transitions = transitions_payload.get("transitions", [])
+            matching_transition = next(
+                (
+                    transition
+                    for transition in transitions
+                    if target_status_normalized
+                    in {
+                        str(transition.get("name", "")).strip().lower(),
+                        str((transition.get("to") or {}).get("name", "")).strip().lower(),
+                    }
+                ),
+                None,
+            )
+            if matching_transition is None:
+                available = ", ".join(
+                    (
+                        f"{transition.get('name')} -> "
+                        f"{(transition.get('to') or {}).get('name')}"
+                    )
+                    for transition in transitions
+                )
+                return (
+                    f"Recusado: o status '{target_status}' não está disponível para "
+                    f"{issue_key}. Transições disponíveis: {available}."
+                )
+
+            _jira_oauth2_request(
+                "POST",
+                f"/issue/{quote(issue_key)}/transitions",
+                json={"transition": {"id": matching_transition["id"]}},
+                headers={"Content-Type": "application/json"},
+            )
+            return f"Chamado {issue_key} movido para '{target_status}'."
+
         jira = _jira_client()
         transitions = jira.transitions(issue_key)
         matching_transition = next(
             (
                 transition
                 for transition in transitions
-                if str(transition.get("name", "")).strip().lower() == target_status.strip().lower()
+                if target_status_normalized
+                in {
+                    str(transition.get("name", "")).strip().lower(),
+                    str((transition.get("to") or {}).get("name", "")).strip().lower(),
+                }
             ),
             None,
         )
         if matching_transition is None:
-            available = ", ".join(str(transition.get("name")) for transition in transitions)
+            available = ", ".join(
+                (
+                    f"{transition.get('name')} -> "
+                    f"{(transition.get('to') or {}).get('name')}"
+                )
+                for transition in transitions
+            )
             return (
                 f"Recusado: o status '{target_status}' não está disponível para "
                 f"{issue_key}. Transições disponíveis: {available}."
