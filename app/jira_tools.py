@@ -107,6 +107,13 @@ def check_jira_configuration() -> str:
         "oauth_key_cert_set": bool(getenv("JIRA_OAUTH_KEY_CERT") or getenv("JIRA_OAUTH_KEY_CERT_FILE")),
         "cloud_id_set": bool(getenv("JIRA_CLOUD_ID")),
     }
+    if _jira_auth_type() == "oauth2" and getenv("JIRA_CLOUD_ID"):
+        cloud_id = getenv("JIRA_CLOUD_ID", "")
+        if cloud_id.startswith("http://") or cloud_id.startswith("https://"):
+            payload["cloud_id_format"] = "invalid_url"
+        else:
+            payload["cloud_id_format"] = "uuid_or_id"
+            payload["oauth2_api_base"] = f"{JIRA_OAUTH2_API_BASE}/{cloud_id}/rest/api/{JIRA_REST_API_VERSION}"
     return json.dumps(payload, ensure_ascii=False)
 
 
@@ -119,11 +126,16 @@ def test_jira_connection(issue_key: str = "") -> str:
     """
     try:
         if _jira_auth_type() == "oauth2":
-            current_user = _jira_oauth2_request("GET", "/myself")
+            server_info = _jira_oauth2_request("GET", "/serverInfo")
             payload = {
                 "ok": True,
                 "auth_type": "oauth2",
-                "account": _jira_rest_user_summary(current_user),
+                "api_base": _jira_oauth2_api_url(""),
+                "server_info": {
+                    "base_url": server_info.get("baseUrl"),
+                    "server_title": server_info.get("serverTitle"),
+                    "version": server_info.get("version"),
+                },
             }
             if issue_key.strip():
                 issue = _jira_oauth2_request(
@@ -177,19 +189,26 @@ def _jira_oauth2_api_url(path: str) -> str:
     cloud_id = getenv("JIRA_CLOUD_ID")
     if not cloud_id:
         cloud_id = _lookup_jira_cloud_id(_jira_oauth2_access_token())
+    if cloud_id.startswith("http://") or cloud_id.startswith("https://"):
+        msg = (
+            "JIRA_CLOUD_ID deve ser o UUID/cloudId do site Atlassian, não a URL. "
+            "Use JIRA_SERVER_URL para https://seu-site.atlassian.net."
+        )
+        raise RuntimeError(msg)
     return f"{JIRA_OAUTH2_API_BASE}/{cloud_id}/rest/api/{JIRA_REST_API_VERSION}{path}"
 
 
 def _jira_oauth2_request(method: str, path: str, **kwargs: Any) -> dict[str, Any]:
     import requests
 
+    url = _jira_oauth2_api_url(path)
     access_token = _jira_oauth2_access_token()
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Accept": "application/json",
         **kwargs.pop("headers", {}),
     }
-    response = requests.request(method, _jira_oauth2_api_url(path), headers=headers, timeout=30, **kwargs)
+    response = requests.request(method, url, headers=headers, timeout=30, **kwargs)
     response.raise_for_status()
     if response.status_code == 204 or not response.content:
         return {}
@@ -315,6 +334,11 @@ def _jira_error_payload(error: Exception, operation: str) -> str:
             "JIRA_OAUTH_CLIENT_SECRET conseguem emitir token, se JIRA_CLOUD_ID aponta para o site correto "
             "e se o OAuth possui escopos/permissões para acessar esse chamado/projeto."
         )
+        if (getattr(error, "status_code", None) or getattr(response, "status_code", None)) == 404:
+            suggestion = (
+                "HTTP 404 em OAuth 2 normalmente indica JIRA_CLOUD_ID incorreto, JIRA_CLOUD_ID preenchido "
+                "com a URL em vez do UUID/cloudId, ou chamado/projeto não acessível para essa credencial."
+            )
     elif _jira_auth_type() == "oauth1":
         suggestion = (
             "Verifique access token, access token secret, consumer key, chave privada OAuth e permissões "
