@@ -9,6 +9,7 @@ from pathlib import Path
 
 from agno.os import AgentOS
 from agno.utils.log import log_info
+from fastapi import FastAPI
 
 from agents.agent_builder import agent_builder
 from agents.chief import chief
@@ -53,6 +54,17 @@ if SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET:
 
 
 # ---------------------------------------------------------------------------
+# Base FastAPI app
+# - Custom webhook routes live here before AgentOS mounts its own routes.
+# ---------------------------------------------------------------------------
+base_app = FastAPI(title="AgentOS")
+if getenv("ROCKETCHAT_WEBHOOK_TOKEN"):
+    from app.rocketchat import rocketchat_router
+
+    base_app.include_router(rocketchat_router())
+
+
+# ---------------------------------------------------------------------------
 # MCP OAuth — enabled by setting the MCP_CONNECT_SECRET environment variable.
 # Connect your favorite AI apps and coding agents to a secure /mcp using OAuth.
 # ---------------------------------------------------------------------------
@@ -91,6 +103,7 @@ async def lifespan(app):  # type: ignore[no-untyped-def]
 # ---------------------------------------------------------------------------
 agent_os = AgentOS(
     name="AgentOS",
+    base_app=base_app,
     tracing=True,
     scheduler=True,
     scheduler_base_url=agentos_url,

@@ -6,7 +6,7 @@ AgentOS turns your agents into a production API and MCP server. One AI backend t
 2. **AgentOS UI.** Chat with agents, build new ones, inspect sessions, traces, memory, and evals from the AgentOS UI at [os.agno.com](https://os.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agentos-railway&utm_content=agentos-railway&utm_term=railway).
 3. **Coding agents.** Manage the full agent development lifecycle (create, extend, improve, eval, review) using the skills in [`.agents/skills/`](.agents/skills/).
 4. **AI apps.** Use your agents from Claude and ChatGPT using the MCP server at `/mcp`.
-5. **Chat interfaces.** Chat with your agents from Slack, WhatsApp, Telegram, and Discord.
+5. **Chat interfaces.** Chat with your agents from Rocket.Chat, Slack, WhatsApp, Telegram, and Discord.
 
 <img width="3298" height="2412" alt="AgentOS" src="https://github.com/user-attachments/assets/40a53a42-d4d2-402b-8e92-742609207957" />
 
@@ -238,6 +238,18 @@ can you access my agentos mcp?
 
 **claude.ai and ChatGPT (web).** Hosted AI apps reach your platform over the internet and need an OAuth login. Deploy to production (above), add `https://<domain>/mcp` as a remote connector, and approve the consent page with your connect secret.
 
+### Rocket.Chat
+
+Create an **Outgoing WebHook** in Rocket.Chat and point it at:
+
+```text
+https://<agentos-domain>/rocketchat/webhook
+```
+
+Set the webhook token in `ROCKETCHAT_WEBHOOK_TOKEN`. By default messages go to
+`jira-ticket-responder`; change `ROCKETCHAT_AGENT_ID` to `chief` or `general-chat`
+if needed.
+
 ## Environment variables
 
 | Variable | Required | Default | Description |
@@ -262,7 +274,10 @@ can you access my agentos mcp?
 | `JIRA_OAUTH_ACCESS_TOKEN` | no | none | Optional direct Jira Cloud OAuth 2.0 bearer token for temporary/manual tests. Used instead of client credentials when set. |
 | `JIRA_OAUTH_ACCESS_TOKEN_SECRET` / `JIRA_OAUTH_CONSUMER_KEY` / `JIRA_OAUTH_KEY_CERT` or `JIRA_OAUTH_KEY_CERT_FILE` | no | none | Jira OAuth 1.0 credentials. Set `JIRA_AUTH_TYPE=oauth1`; `JIRA_SERVER_URL` is also required. |
 | `JIRA_ENABLE_MUTATIONS` | no | `False` | Set `True` to expose guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content. |
-| `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | no | none | Both must be set to enable the Slack interface. |
+| `ROCKETCHAT_WEBHOOK_TOKEN` | no | none | Enables the Rocket.Chat outgoing webhook endpoint at `/rocketchat/webhook`. Set this to the token configured in Rocket.Chat. |
+| `ROCKETCHAT_AGENT_ID` | no | `jira-ticket-responder` | Agent used for Rocket.Chat messages. Options: `jira-ticket-responder`, `chief`, `general-chat`. |
+| `ROCKETCHAT_BOT_USERNAME` | no | none | Optional bot username to strip from messages, for example when Rocket.Chat sends `@bot text`. |
+| `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | no | none | Both must be set to enable the optional Slack interface. |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` | no | matches compose | Postgres connection. |
 | `DB_DRIVER` | no | `postgresql+psycopg` | SQLAlchemy driver. |
 | `AGNO_DEBUG` | no | `False` | If `True`, Agno emits verbose debug logs. Compose sets this for dev. |

@@ -24,7 +24,7 @@ Shared:
 - `app.settings.default_model()` returns `OpenRouter(id=OPENROUTER_MODEL or "~openai/gpt-mini-latest")` — bump the model in one place.
 - `app.registry.registry` exposes the safe Studio registry Agent Builder can use: Agno docs MCP, web search, optional Jira tools when `JIRA_*` credentials are configured (read-only unless `JIRA_ENABLE_MUTATIONS=True`, which exposes guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content), reasoning tools, utility functions, the default model, the shared DB, and the reference agents (chief, platform-manager). At runtime agno folds every registered agent's own wiring into the live registry too (`studio`, Chief's `filesystem` notes, the `agentos` ops toolkit) — Agent Builder's instructions treat those as off-limits for builds unless the user asks for the capability by name.
 - Scheduler enabled by default (`scheduler=True`); `app/schedules.py` registers schedules from the lifespan. Deployment check runs daily **on** by default — set `ENABLE_DEPLOY_CHECK=False` to disable it. The run-evals schedule is always registered but ships **disabled** (it uses model calls) — flip it on from the AgentOS UI when you want scheduled eval runs; the toggle survives reboots.
-- Slack interface lights up automatically when both `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` are set.
+- Rocket.Chat webhook lights up automatically when `ROCKETCHAT_WEBHOOK_TOKEN` is set. Slack remains optional when both `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` are set.
 - MCP server on by default (`mcp_server=True`) at `/mcp` — see [MCP interface](#mcp-interface).
 - MCP OAuth lights up when `MCP_CONNECT_SECRET` is set (built-in authorization server) — how claude.ai and ChatGPT (web) connect; see [MCP interface](#mcp-interface).
 - JWT auth on whenever `RUNTIME_ENV` is anything but `dev` (so production deploys, which default to `prd`, are gated by default).
@@ -213,8 +213,11 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 | `JIRA_OAUTH_ACCESS_TOKEN` | no | none | Optional direct Jira Cloud OAuth 2.0 bearer token for temporary/manual tests. Used instead of client credentials when set. |
 | `JIRA_OAUTH_ACCESS_TOKEN_SECRET` / `JIRA_OAUTH_CONSUMER_KEY` / `JIRA_OAUTH_KEY_CERT` or `JIRA_OAUTH_KEY_CERT_FILE` | no | none | Jira OAuth 1.0 credentials. Set `JIRA_AUTH_TYPE=oauth1`; `JIRA_SERVER_URL` is also required. |
 | `JIRA_ENABLE_MUTATIONS` | no | `False` | Set `True` to expose guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content. |
-| `SLACK_BOT_TOKEN` | no | — | Bot token. Set with signing secret to enable the Slack interface. |
-| `SLACK_SIGNING_SECRET` | no | — | Signing secret. Both it and the bot token must be set for the interface to load. |
+| `ROCKETCHAT_WEBHOOK_TOKEN` | no | — | Enables the Rocket.Chat outgoing webhook endpoint at `/rocketchat/webhook`. Set this to the token configured in Rocket.Chat. |
+| `ROCKETCHAT_AGENT_ID` | no | `jira-ticket-responder` | Agent used for Rocket.Chat messages. Options: `jira-ticket-responder`, `chief`, `general-chat`. |
+| `ROCKETCHAT_BOT_USERNAME` | no | — | Optional bot username to strip from messages, for example when Rocket.Chat sends `@bot text`. |
+| `SLACK_BOT_TOKEN` | no | — | Bot token. Set with signing secret to enable the optional Slack interface. |
+| `SLACK_SIGNING_SECRET` | no | — | Signing secret. Both it and the bot token must be set for the optional Slack interface to load. |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` | no | matches compose | Postgres connection. |
 | `DB_DRIVER` | no | `postgresql+psycopg` | SQLAlchemy driver. |
 | `AGNO_DEBUG` | no | `False` | If `True`, agno emits verbose debug logs. Compose sets this for dev. |
@@ -266,7 +269,14 @@ Keep it read-only. Least privilege is the point: an ops surface that only reads 
 
 Local smoke check: `./scripts/mcp_check.sh` — handshake, tool count, and one quick tool-free `run_agent` call through `/mcp` (finishes in seconds; pass your own question as an argument), executed inside the container. When `/mcp` is auth-gated (OAuth on, or prd JWT), it retries with a short-lived probe service account that it mints and deletes itself. To register the endpoint, run `uvx agno connect` (auto-detects Claude Code / Claude Desktop / Codex / Cursor and verifies with a real handshake); the manual fallback for Claude Code is `claude mcp add --transport http agentos http://localhost:8000/mcp`.
 
-## Slack
+## Rocket.Chat and Slack
+
+Set `ROCKETCHAT_WEBHOOK_TOKEN` and restart to enable `POST /rocketchat/webhook`.
+Configure a Rocket.Chat **Outgoing WebHook** pointing at
+`https://<agentos-domain>/rocketchat/webhook` and use the same token.
+`ROCKETCHAT_AGENT_ID` selects the agent (`jira-ticket-responder`, `chief`, or
+`general-chat`) and defaults to Jira support. `ROCKETCHAT_BOT_USERNAME` is
+optional and strips `@botname` from incoming messages before they reach the agent.
 
 Set `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` and restart. The default wiring in `app/main.py` routes Slack messages to `chief`, so the mascot lives where the team already talks — each sender keeps their private profile and memory (identity is per-sender; sessions are thread-scoped — a new top-level mention starts a fresh session, replies within that thread share it) while notes and entities are shared. Change the `agent=` arg to point at another agent. See the [agno Slack interface docs](https://docs.agno.com/agent-os/interfaces/overview) for the Slack-side app setup.
 
