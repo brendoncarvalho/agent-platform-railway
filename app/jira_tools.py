@@ -505,6 +505,22 @@ def _explicitly_requested(value: str, user_request_quote: str) -> bool:
     return value.strip().lower() in user_request_quote.strip().lower()
 
 
+def _jira_estimate_for_api(original_estimate: str) -> str:
+    normalized = original_estimate.strip().lower()
+    replacements = (
+        (" minutos", "m"),
+        (" minuto", "m"),
+        (" min", "m"),
+        (" horas", "h"),
+        (" hora", "h"),
+        (" dias", "d"),
+        (" dia", "d"),
+    )
+    for source, target in replacements:
+        normalized = normalized.replace(source, target)
+    return normalized.replace(" ", "")
+
+
 def _jira_user_summary(user: Any) -> dict[str, Any] | None:
     if user is None:
         return None
@@ -850,9 +866,19 @@ def set_jira_issue_original_estimate(issue_key: str, original_estimate: str, use
         )
 
     try:
+        estimate_for_api = _jira_estimate_for_api(original_estimate)
+        if _jira_auth_type() == "oauth2":
+            _jira_oauth2_request(
+                "PUT",
+                f"/issue/{quote(issue_key)}",
+                json={"fields": {"timetracking": {"originalEstimate": estimate_for_api}}},
+                headers={"Content-Type": "application/json"},
+            )
+            return f"Tempo previsto de {issue_key} definido como '{original_estimate}'."
+
         jira = _jira_client()
         issue = jira.issue(issue_key)
-        issue.update(fields={"timetracking": {"originalEstimate": original_estimate}})
+        issue.update(fields={"timetracking": {"originalEstimate": estimate_for_api}})
         return f"Tempo previsto de {issue_key} definido como '{original_estimate}'."
     except Exception as exc:
         return _jira_error_payload(exc, "set_jira_issue_original_estimate")
