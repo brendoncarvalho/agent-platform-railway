@@ -28,6 +28,30 @@ def jira_credentials_configured() -> bool:
     )
 
 
+def check_jira_configuration() -> str:
+    """Verifica a configuração do Jira sem expor segredos.
+
+    Use quando as ferramentas do Jira parecerem indisponíveis ou quando uma
+    conexão falhar. Retorna quais variáveis obrigatórias estão configuradas,
+    quais estão ausentes e se mutações guardadas estão habilitadas.
+    """
+    required_state = {
+        "JIRA_SERVER_URL": bool(getenv("JIRA_SERVER_URL")),
+        "JIRA_USERNAME": bool(getenv("JIRA_USERNAME")),
+        "JIRA_TOKEN_or_JIRA_PASSWORD": bool(getenv("JIRA_TOKEN") or getenv("JIRA_PASSWORD")),
+    }
+    missing = [name for name, configured in required_state.items() if not configured]
+    payload = {
+        "configured": not missing,
+        "missing": missing,
+        "mutations_enabled": env_flag("JIRA_ENABLE_MUTATIONS", default=False),
+        "server_url_set": required_state["JIRA_SERVER_URL"],
+        "username_set": required_state["JIRA_USERNAME"],
+        "secret_set": required_state["JIRA_TOKEN_or_JIRA_PASSWORD"],
+    }
+    return json.dumps(payload, ensure_ascii=False)
+
+
 def _jira_client() -> Any:
     from jira import JIRA
 
@@ -272,13 +296,18 @@ def get_jira_tools() -> list[Any]:
     Uses custom read tools instead of Agno's native JiraTools so every Jira
     operation goes through the same guarded client setup.
     """
-    if not jira_credentials_configured():
-        return []
-
     tools: list[Any] = [
-        search_jira_issues,
-        get_jira_issue,
+        check_jira_configuration,
     ]
+    if not jira_credentials_configured():
+        return tools
+
+    tools.extend(
+        [
+            search_jira_issues,
+            get_jira_issue,
+        ]
+    )
     if env_flag("JIRA_ENABLE_MUTATIONS", default=False):
         tools.extend(
             [
