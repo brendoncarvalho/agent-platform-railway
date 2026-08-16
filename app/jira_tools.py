@@ -94,6 +94,7 @@ def check_jira_configuration() -> str:
     payload = {
         "configured": not missing,
         "missing": missing,
+        "note": "Este teste valida variáveis de ambiente; use diagnose_jira_connection para testar a API real.",
         "auth_type": _jira_auth_type(),
         "mutations_enabled": env_flag("JIRA_ENABLE_MUTATIONS", default=False),
         "server_url_set": bool(getenv("JIRA_SERVER_URL")),
@@ -115,6 +116,32 @@ def check_jira_configuration() -> str:
             payload["cloud_id_format"] = "uuid_or_id"
             payload["oauth2_api_base"] = f"{JIRA_OAUTH2_API_BASE}/{cloud_id}/rest/api/{JIRA_REST_API_VERSION}"
     return json.dumps(payload, ensure_ascii=False)
+
+
+def diagnose_jira_connection(issue_key: str = "") -> str:
+    """Diagnostica configuração e conectividade real com o Jira.
+
+    Combina check_jira_configuration com test_jira_connection. Use para
+    troubleshooting, especialmente quando houver HTTP 401/403/404.
+    """
+    configuration = json.loads(check_jira_configuration())
+    payload: dict[str, Any] = {
+        "ok": False,
+        "configuration": configuration,
+        "live_test": None,
+    }
+    if not configuration["configured"]:
+        payload["message"] = "Configuração incompleta; a API real não foi chamada."
+        return json.dumps(payload, ensure_ascii=False, default=str)
+
+    live_test = json.loads(test_jira_connection(issue_key=issue_key))
+    payload["live_test"] = live_test
+    payload["ok"] = bool(live_test.get("ok"))
+    if not payload["ok"]:
+        payload["message"] = "Configuração completa, mas o teste real da API falhou."
+    else:
+        payload["message"] = "Configuração completa e teste real da API aprovado."
+    return json.dumps(payload, ensure_ascii=False, default=str)
 
 
 def test_jira_connection(issue_key: str = "") -> str:
@@ -699,6 +726,7 @@ def get_jira_tools() -> list[Any]:
     """
     tools: list[Any] = [
         check_jira_configuration,
+        diagnose_jira_connection,
     ]
     if not jira_credentials_configured():
         return tools
