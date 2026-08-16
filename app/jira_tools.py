@@ -756,6 +756,25 @@ def edit_jira_ai_comment(issue_key: str, comment_id: str, comment_pt_br: str) ->
     aviso de IA.
     """
     try:
+        if _jira_auth_type() == "oauth2":
+            comment = _jira_oauth2_request("GET", f"/issue/{quote(issue_key)}/comment/{quote(comment_id)}")
+            existing_body = _text_from_adf(comment.get("body")) or ""
+
+            if not _is_jira_ai_comment(existing_body):
+                return (
+                    f"Recusado: o comentário {comment_id} no chamado {issue_key} não "
+                    "foi criado por esta ferramenta de IA. Nenhuma alteração foi feita no Jira."
+                )
+
+            updated_comment = _jira_oauth2_request(
+                "PUT",
+                f"/issue/{quote(issue_key)}/comment/{quote(comment_id)}",
+                json={"body": _format_jira_ai_comment(comment_pt_br, issue_key)},
+                headers={"Content-Type": "application/json"},
+            )
+            updated_id = updated_comment.get("id", comment_id)
+            return f"Comentário {updated_id} do chamado {issue_key} atualizado."
+
         jira = _jira_client()
         comment = jira.comment(issue_key, comment_id)
         existing_body = getattr(comment, "body", "")
