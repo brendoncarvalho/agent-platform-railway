@@ -555,6 +555,64 @@ def _jira_rest_issue_summary(issue: dict[str, Any], include_description: bool = 
     return payload
 
 
+def _looks_like_account_id(value: str) -> bool:
+    normalized = value.strip()
+    return ":" in normalized or (_valid_uuid(normalized) and "@" not in normalized)
+
+
+def _jira_oauth2_assignable_users(issue_key: str, assignee: str) -> list[dict[str, Any]]:
+    params = {"issueKey": issue_key, "maxResults": 10}
+    if _looks_like_account_id(assignee):
+        params["accountId"] = assignee
+    else:
+        params["query"] = assignee
+
+    users = _jira_oauth2_request("GET", "/user/assignable/search", params=params)
+    if not isinstance(users, list):
+        return []
+    return users
+
+
+def _jira_oauth2_resolve_assignee(issue_key: str, assignee: str) -> dict[str, Any]:
+    users = _jira_oauth2_assignable_users(issue_key, assignee)
+    if not users:
+        return {
+            "ok": False,
+            "reason": "assignee_not_found",
+            "message": (
+                f"Nenhum usuário atribuível ao chamado {issue_key} foi encontrado para '{assignee}'. "
+                "Nenhuma alteração foi feita no Jira."
+            ),
+            "candidates": [],
+        }
+
+    normalized = assignee.strip().lower()
+    exact_matches = [
+        user
+        for user in users
+        if normalized
+        in {
+            str(user.get("accountId", "")).strip().lower(),
+            str(user.get("emailAddress", "")).strip().lower(),
+            str(user.get("displayName", "")).strip().lower(),
+        }
+    ]
+    if len(exact_matches) == 1:
+        return {"ok": True, "user": exact_matches[0]}
+    if len(users) == 1:
+        return {"ok": True, "user": users[0]}
+
+    return {
+        "ok": False,
+        "reason": "ambiguous_assignee",
+        "message": (
+            f"Mais de um usuário atribuível foi encontrado para '{assignee}'. "
+            "Informe o nome completo, e-mail ou accountId. Nenhuma alteração foi feita no Jira."
+        ),
+        "candidates": [_jira_rest_user_summary(user) for user in users],
+    }
+
+
 def _jira_issue_summary(issue: Any, include_description: bool = False) -> dict[str, Any]:
     fields = issue.fields
     payload = {
@@ -796,6 +854,21 @@ def assign_jira_issue(issue_key: str, assignee: str, user_request_quote: str) ->
         )
 
     try:
+        if _jira_auth_type() == "oauth2":
+            resolved = _jira_oauth2_resolve_assignee(issue_key, assignee)
+            if not resolved["ok"]:
+                return json.dumps(resolved, ensure_ascii=False, default=str)
+
+            user = resolved["user"]
+            _jira_oauth2_request(
+                "PUT",
+                f"/issue/{quote(issue_key)}/assignee",
+                json={"accountId": user["accountId"]},
+                headers={"Content-Type": "application/json"},
+            )
+            display_name = user.get("displayName") or assignee
+            return f"Chamado {issue_key} atribuído para '{display_name}'."
+
         jira = _jira_client()
         jira.assign_issue(issue_key, assignee)
         return f"Chamado {issue_key} atribuído para '{assignee}'."
