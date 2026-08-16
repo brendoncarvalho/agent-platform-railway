@@ -71,6 +71,25 @@ def _jira_client() -> Any:
     return jira
 
 
+def _jira_error_payload(error: Exception, operation: str) -> str:
+    response = getattr(error, "response", None)
+    headers = getattr(response, "headers", {}) or {}
+    payload = {
+        "ok": False,
+        "operation": operation,
+        "status_code": getattr(error, "status_code", None),
+        "url": getattr(error, "url", None),
+        "message": getattr(error, "text", None) or str(error),
+        "login_reason": headers.get("X-Seraph-Loginreason"),
+        "atl_request_id": headers.get("Atl-Request-Id"),
+        "suggestion": (
+            "Verifique se JIRA_USERNAME é o e-mail da conta Atlassian, se JIRA_TOKEN "
+            "é um API token válido dessa mesma conta e se a conta tem permissão para ver o chamado/projeto."
+        ),
+    }
+    return json.dumps(payload, ensure_ascii=False, default=str)
+
+
 def _jira_user_matches(user: Any, expected: str) -> bool:
     expected = expected.strip().lower()
     candidates = {
@@ -138,11 +157,14 @@ def search_jira_issues(jql: str, max_results: int = 10) -> str:
     Use esta ferramenta para localizar chamados antes de responder. Não altera
     nenhum conteúdo do Jira.
     """
-    jira = _jira_client()
-    safe_limit = max(1, min(max_results, 25))
-    issues = jira.search_issues(jql, maxResults=safe_limit)
-    payload = [_jira_issue_summary(issue) for issue in issues]
-    return json.dumps(payload, ensure_ascii=False, default=str)
+    try:
+        jira = _jira_client()
+        safe_limit = max(1, min(max_results, 25))
+        issues = jira.search_issues(jql, maxResults=safe_limit)
+        payload = {"ok": True, "issues": [_jira_issue_summary(issue) for issue in issues]}
+        return json.dumps(payload, ensure_ascii=False, default=str)
+    except Exception as exc:
+        return _jira_error_payload(exc, "search_jira_issues")
 
 
 def get_jira_issue(issue_key: str) -> str:
@@ -151,16 +173,19 @@ def get_jira_issue(issue_key: str) -> str:
     Use esta ferramenta para ler o chamado antes de responder ou executar uma
     ação guardada. Não altera nenhum conteúdo do Jira.
     """
-    jira = _jira_client()
-    issue = jira.issue(issue_key)
-    payload = _jira_issue_summary(issue, include_description=True)
+    try:
+        jira = _jira_client()
+        issue = jira.issue(issue_key)
+        payload = {"ok": True, "issue": _jira_issue_summary(issue, include_description=True)}
+    except Exception as exc:
+        return _jira_error_payload(exc, "get_jira_issue")
 
     try:
         comments = jira.comments(issue_key)
     except Exception:
         comments = []
 
-    payload["comments"] = [
+    payload["issue"]["comments"] = [
         {
             "id": getattr(comment, "id", None),
             "author": _jira_user_summary(getattr(comment, "author", None)),
