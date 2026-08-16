@@ -41,7 +41,7 @@ Shared:
 | [`agents/platform_manager.py`](agents/platform_manager.py) | Flagship agent — codebase context provider + agno's `AgentOSTools` read-only ops toolkit (usage metrics, run and tool activity from traces, eval history, schedules and their run history, runtime-built components, pending approvals) + deployment-check reports with an on-demand diagnostic run. Wires the shared per-user profile/memory stores. |
 | [`agents/agent_builder.py`](agents/agent_builder.py) | Reference agent — creates, edits, and publishes agents, teams, and workflows through StudioTools immediately; only deletes keep a HITL confirmation gate. Wires the shared per-user profile/memory stores. |
 | [`agents/jira_ticket_responder.py`](agents/jira_ticket_responder.py) | Jira support agent — reads Jira issues, comments in pt-BR, and edits only comments created by its own guarded AI tool. |
-| [`app/jira_tools.py`](app/jira_tools.py) | Shared Jira tool factory — read-only native JiraTools plus guarded Jira mutation tools when enabled. |
+| [`app/jira_tools.py`](app/jira_tools.py) | Shared Jira tool factory — custom read-only Jira tools plus guarded Jira mutation tools when enabled. |
 | [`workflows/deployment_check.py`](workflows/deployment_check.py) | Reference workflow — a deterministic `Step` that checks DB, auth, scheduler URL, MCP reachability, Slack config, schedule state, and component imports; imported into `app/main.py` and passed to `AgentOS(workflows=[...])`. |
 | [`workflows/run_evals.py`](workflows/run_evals.py) | Optional workflow — runs a tagged subset of the eval suite and returns a compact report. Its daily schedule ships disabled — enable it from the AgentOS UI. |
 | [`app/schedules.py`](app/schedules.py) | `register_schedules()` — cron registration, called from the lifespan (idempotent, fail-soft). |
@@ -205,7 +205,7 @@ Invoke a skill by name (`/extend-agent`) or just describe the task — Claude Co
 | `EVALS_CASE_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for run-evals runs; applies only to cases that don't set their own `timeout_seconds`. |
 | `EVALS_SUITE_TIMEOUT_SECONDS` | no | `900` | Whole-suite timeout for run-evals runs; per-case timeouts are the granular limit. The default bounds the `smoke` tag's worst case (incl. builder-case teardown). |
 | `PARALLEL_API_KEY` | no | — | Authenticates Chief's and the Studio registry's web search tools (Parallel SDK when set; keyless MCP fallback with a lower rate ceiling). |
-| `JIRA_SERVER_URL` / `JIRA_USERNAME` / `JIRA_TOKEN` or `JIRA_PASSWORD` | no | none | When set, exposes JiraTools in the Studio registry. Defaults to read-only search/get issue. |
+| `JIRA_SERVER_URL` / `JIRA_USERNAME` / `JIRA_TOKEN` or `JIRA_PASSWORD` | no | none | When set, exposes guarded Jira tools in the Studio registry. Defaults to read-only search/get issue. |
 | `JIRA_ENABLE_MUTATIONS` | no | `False` | Set `True` to expose guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content. |
 | `SLACK_BOT_TOKEN` | no | — | Bot token. Set with signing secret to enable the Slack interface. |
 | `SLACK_SIGNING_SECRET` | no | — | Signing secret. Both it and the bot token must be set for the interface to load. |

@@ -5,10 +5,9 @@ Jira Tools
 Guarded Jira tools shared by the registry and Jira-facing agents.
 """
 
+import json
 from os import getenv
 from typing import Any
-
-from agno.tools.jira import JiraTools
 
 JIRA_AI_COMMENT_MARKER = "<!-- agentos-ai-comment -->"
 JIRA_AI_COMMENT_FOOTER = "Informação gerada por uma ferramenta de IA."
@@ -34,7 +33,18 @@ def _jira_client() -> Any:
 
     username = getenv("JIRA_USERNAME", "")
     secret = getenv("JIRA_TOKEN") or getenv("JIRA_PASSWORD", "")
-    return JIRA(server=getenv("JIRA_SERVER_URL"), basic_auth=(username, secret))
+    jira = JIRA(server=getenv("JIRA_SERVER_URL"), basic_auth=(username, secret))
+
+    # Defensive compatibility guard for python-jira ResilientSession. Without
+    # these attributes some error paths raise AttributeError before exposing the
+    # real Jira HTTP/auth response.
+    session = getattr(jira, "_session", None)
+    if session is not None:
+        if not hasattr(session, "max_retries"):
+            session.max_retries = 3
+        if not hasattr(session, "max_retry_delay"):
+            session.max_retry_delay = 60
+    return jira
 
 
 def _jira_user_matches(user: Any, expected: str) -> bool:
@@ -60,6 +70,83 @@ def _format_jira_ai_comment(comment_pt_br: str) -> str:
 
 def _explicitly_requested(value: str, user_request_quote: str) -> bool:
     return value.strip().lower() in user_request_quote.strip().lower()
+
+
+def _jira_user_summary(user: Any) -> dict[str, Any] | None:
+    if user is None:
+        return None
+    return {
+        "account_id": getattr(user, "accountId", None),
+        "display_name": getattr(user, "displayName", None),
+        "email": getattr(user, "emailAddress", None),
+        "name": getattr(user, "name", None),
+        "key": getattr(user, "key", None),
+    }
+
+
+def _jira_field_name(value: Any) -> str | None:
+    if value is None:
+        return None
+    return getattr(value, "name", str(value))
+
+
+def _jira_issue_summary(issue: Any, include_description: bool = False) -> dict[str, Any]:
+    fields = issue.fields
+    payload = {
+        "key": issue.key,
+        "summary": getattr(fields, "summary", None),
+        "status": _jira_field_name(getattr(fields, "status", None)),
+        "issue_type": _jira_field_name(getattr(fields, "issuetype", None)),
+        "priority": _jira_field_name(getattr(fields, "priority", None)),
+        "assignee": _jira_user_summary(getattr(fields, "assignee", None)),
+        "reporter": _jira_user_summary(getattr(fields, "reporter", None)),
+        "created": getattr(fields, "created", None),
+        "updated": getattr(fields, "updated", None),
+    }
+    if include_description:
+        payload["description"] = getattr(fields, "description", None)
+    return payload
+
+
+def search_jira_issues(jql: str, max_results: int = 10) -> str:
+    """Busca chamados no Jira usando JQL e retorna um resumo em JSON.
+
+    Use esta ferramenta para localizar chamados antes de responder. Não altera
+    nenhum conteúdo do Jira.
+    """
+    jira = _jira_client()
+    safe_limit = max(1, min(max_results, 25))
+    issues = jira.search_issues(jql, maxResults=safe_limit)
+    payload = [_jira_issue_summary(issue) for issue in issues]
+    return json.dumps(payload, ensure_ascii=False, default=str)
+
+
+def get_jira_issue(issue_key: str) -> str:
+    """Obtém detalhes de um chamado Jira e retorna JSON.
+
+    Use esta ferramenta para ler o chamado antes de responder ou executar uma
+    ação guardada. Não altera nenhum conteúdo do Jira.
+    """
+    jira = _jira_client()
+    issue = jira.issue(issue_key)
+    payload = _jira_issue_summary(issue, include_description=True)
+
+    try:
+        comments = jira.comments(issue_key)
+    except Exception:
+        comments = []
+
+    payload["comments"] = [
+        {
+            "id": getattr(comment, "id", None),
+            "author": _jira_user_summary(getattr(comment, "author", None)),
+            "created": getattr(comment, "created", None),
+            "updated": getattr(comment, "updated", None),
+            "body": getattr(comment, "body", None),
+        }
+        for comment in comments[-5:]
+    ]
+    return json.dumps(payload, ensure_ascii=False, default=str)
 
 
 def comment_jira_issue(issue_key: str, comment_pt_br: str) -> str:
@@ -182,21 +269,15 @@ def assign_jira_issue(issue_key: str, assignee: str, user_request_quote: str) ->
 def get_jira_tools() -> list[Any]:
     """Expose Jira tools when credentials are configured.
 
-    Native JiraTools stay read-only. Jira writes are opt-in and limited to
-    guarded tools: add comments anywhere; edit only AI-created comments; move
-    status, set estimates, and assign owners only when explicit; and never delete.
+    Uses custom read tools instead of Agno's native JiraTools so every Jira
+    operation goes through the same guarded client setup.
     """
     if not jira_credentials_configured():
         return []
 
     tools: list[Any] = [
-        JiraTools(
-            enable_search_issues=True,
-            enable_get_issue=True,
-            enable_create_issue=False,
-            enable_add_comment=False,
-            enable_add_worklog=False,
-        )
+        search_jira_issues,
+        get_jira_issue,
     ]
     if env_flag("JIRA_ENABLE_MUTATIONS", default=False):
         tools.extend(
