@@ -5,9 +5,11 @@ App Settings
 Shared runtime objects for the platform.
 """
 
-from agno.models.openai import OpenAIResponses
+from os import getenv
+
+from agno.models.openrouter import OpenRouter
 
 
-def default_model() -> OpenAIResponses:
+def default_model() -> OpenRouter:
     """Fresh model instance per agent — avoids shared-state footguns."""
-    return OpenAIResponses(id="gpt-5.6-sol")
+    return OpenRouter(id=getenv("OPENROUTER_MODEL", "openai/gpt-5"))

@@ -47,7 +47,7 @@ cd agentos
 
 # Configure credentials
 cp example.env .env
-# Open .env and set OPENAI_API_KEY
+# Open .env and set OPENAI_API_KEY + OPENROUTER_API_KEY
 
 # Run the platform on docker
 docker compose up -d --build
@@ -89,7 +89,7 @@ cp .env .env.production          # or cp example.env .env.production
 # Edit .env.production with production values
 ```
 
-Keeping a separate `.env.production` lets us use different values for local and production: different OpenAI keys, production-only credentials, a different Slack workspace.
+Keeping a separate `.env.production` lets us use different values for local and production: different model/embedding keys, production-only credentials, a different Slack workspace.
 
 ### 2. Deploy
 
@@ -242,7 +242,9 @@ can you access my agentos mcp?
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `OPENAI_API_KEY` | yes | none | OpenAI key for models and embeddings. |
+| `OPENAI_API_KEY` | yes | none | OpenAI key for embeddings. |
+| `OPENROUTER_API_KEY` | yes | none | OpenRouter key for the platform's default chat model. |
+| `OPENROUTER_MODEL` | no | `openai/gpt-5` | OpenRouter model id used by `app.settings.default_model()`. |
 | `RUNTIME_ENV` | no | `prd` | `dev` disables JWT. Compose sets this to `dev` for local — never put it in an env file that syncs to Railway, or production deploys unauthenticated. |
 | `JWT_VERIFICATION_KEY` | prd | none | Public key from os.agno.com. Required when `RUNTIME_ENV=prd`, unless `JWT_JWKS_FILE` is set. |
 | `JWT_JWKS_FILE` | prd | none | Path to a JWKS file; alternative to `JWT_VERIFICATION_KEY` for production JWT verification. |
