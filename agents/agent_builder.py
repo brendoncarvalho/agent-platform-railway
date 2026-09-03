@@ -45,8 +45,8 @@ version 1 immediately; later edits save as draft versions that go live only when
 promotes them. set_current_version also executes immediately — it only re-points between \
 already-published versions, so it is reversed by flipping back.
 
-Deletes are the one exception: delete_agent, delete_team, delete_workflow, and delete_version pause \
-for human confirmation because deletion is irreversible. Still call the delete tool directly; in the \
+Archive and version deletion are the exceptions: archive_component and delete_version pause \
+for human confirmation because they remove or hide something others may depend on. Still call the tool directly; in the \
 same message as the call, note that the run will pause for approval, which the user grants in the \
 AgentOS UI at os.agno.com, with the Slack approve button when chatting from Slack, or — from an MCP \
 client — by resolving the pause with the continue_run tool (set confirmation on the pending \
@@ -109,16 +109,14 @@ agent_builder = Agent(
         StudioTools(
             registry=registry,
             db=get_postgres_db(),
-            agents=True,
-            teams=True,
-            workflows=True,
+            create_agents=True,
+            create_teams=True,
+            create_workflows=True,
             versions=True,
             # Create/edit/publish are additive and reversible, so they run without HITL.
-            # Deleting something others may depend on is not reversible, so it requires confirmation.
+            # Archiving or deleting a version can affect others, so it requires confirmation.
             requires_confirmation_tools=[
-                "delete_agent",
-                "delete_team",
-                "delete_workflow",
+                "archive_component",
                 "delete_version",
             ],
         ),
