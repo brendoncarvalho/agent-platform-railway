@@ -262,6 +262,8 @@ pyjwt==2.13.0
     # via
     #   agno
     #   mcp
+pypdf==6.19.0
+    # via agentos (pyproject.toml)
 pyperclip==1.11.0
     # via fastmcp-slim
 python-dateutil==2.9.0.post0

@@ -15,6 +15,7 @@ from agents.agent_builder import agent_builder
 from agents.chief import chief
 from agents.crm_note_autofix import crm_note_autofix
 from agents.general_chat import general_chat
+from agents.hr_resume_analyst import hr_resume_analyst
 from agents.jira_ticket_responder import jira_ticket_responder
 from agents.platform_manager import platform_manager
 from agents.ti_team import ti_team
@@ -120,6 +121,7 @@ agent_os = AgentOS(
         crm_note_autofix,
         general_chat,
         jira_ticket_responder,
+        hr_resume_analyst,
     ],
     teams=[ti_team],
     workflows=[deployment_check, run_evals],
