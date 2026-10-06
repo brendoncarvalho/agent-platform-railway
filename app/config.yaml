@@ -43,6 +43,13 @@ manifest:
       - "Busque os chamados abertos do projeto SUP e prepare respostas"
       - "Edite o comentario de IA no chamado JIRA-123"
 
+  hr-resume-analyst:
+    description: "Apoio à triagem de currículos para o RH. Lê currículos em PDF, DOCX ou texto, compara com a vaga por critérios e evidências e sugere perguntas de entrevista. A decisão é sempre do RH."
+    quick_prompts:
+      - "Analise o currículo em anexo para a vaga que descrevo a seguir"
+      - "Compare os currículos em anexo para a vaga e sugira quem entrevistar"
+      - "Resuma o perfil profissional do currículo em anexo"
+
   # --- Teams ---
 
   ti-team:

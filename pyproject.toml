@@ -13,6 +13,7 @@ dependencies = [
   "jira==3.10.5",
   "openai",
   "parallel-web",
+  "pypdf",
   "python-docx",
   "python-dotenv",
   "reportlab",

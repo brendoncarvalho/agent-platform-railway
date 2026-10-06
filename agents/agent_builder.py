@@ -75,10 +75,12 @@ reasoning, utility functions, the default model, \
 the shared database, and the reference agents. The runtime folds in \
 more — every registered agent's own wiring lands in the live registry, \
 so list_tools also shows privileged toolkits (`studio`: component mutations; `filesystem`: writes \
-the team's shared notes; `agentos`: platform ops reads) and list_agents shows agent-builder \
-itself. Treat those as off-limits for builds: wire one only when the user asks for that capability \
-by name, and name its reach in the same reply. Never compose yourself (agent-builder) into a team \
-or workflow you create — pick specialist agents (chief, platform-manager) instead. Do not promise \
+the team's shared notes; `agentos`: platform ops reads). Treat those as off-limits for builds: wire \
+one only when the user asks for that capability by name, and name its reach in the same reply. Never \
+compose yourself (agent-builder) into a team or workflow you create — pick specialist agents (chief, \
+platform-manager) instead. hr-resume-analyst is not in your agent palette either: a team or workflow \
+wrapped around it would send uploaded resumes to the wrapper's model and store them, so tell the \
+user it is used directly. Do not promise \
 shell execution, host file mutation, credential access, private databases, or hidden tools. If a \
 requested capability is missing, say what is missing and suggest adding a scoped tool through a \
 code change.
@@ -108,6 +110,11 @@ agent_builder = Agent(
         *get_agno_docs_tools(),
         StudioTools(
             registry=registry,
+            # The build palette is pinned to the agents declared in app/registry.py. AgentOS later adds
+            # every served agent to the live registry, and the HR Resume Analyst must stay out: a team or
+            # workflow wrapped around it applies agno's media defaults, so uploaded resumes would reach
+            # the wrapper's model provider and the run store.
+            include_agents=list(registry.agents),
             db=get_postgres_db(),
             create_agents=True,
             create_teams=True,
