@@ -78,10 +78,10 @@
 
 ### **requirements.txt**
 - **+143/-58 linhas**: Mudanças significativas nas dependências
-- Agno atualizado no repositório para `3.0.5`
+- Agno atualizado no repositório para `3.1.12`
 
 ### **requirements.txt** (Destaques)
-- Agora usa `agno==3.0.5` e `agnoctl==0.2.0`
+- Agora usa `agno==3.1.12` e `agnoctl==0.2.0`
 - Novas dependências para suportar novos agentes
 
 ---
@@ -118,7 +118,7 @@
 
 ### **Versão Agno**
 - **Antes**: Pinned temporário (PR #9185 @ 335ab01)
-- **Depois**: `agno==3.0.5`
+- **Depois**: `agno==3.1.12`
 
 ### **Scripts**
 - Novo: `mcp_check.sh` para verificação de MCP servers
@@ -169,7 +169,7 @@ Alguns destaques:
 2. **Revisar as mudanças:**
    - Os novos agentes `chief.py` e `platform_manager.py` usam AgentOSTools
    - As skills foram reorganizadas e melhoradas
-   - Dependências foram atualizadas para agno 3.0.5
+   - Dependências foram atualizadas para agno 3.1.12
 
 3. **Testar localmente:**
    ```bash
@@ -182,7 +182,7 @@ Alguns destaques:
 - **Agentes Removidos**: Se você depende de `web_search`, `code_search`, etc., precisará adaptá-los
 - **Breaking Changes**: A arquitetura de agents mudou significativamente
 - **Testes**: Recomenda-se rodar `python -m evals --profile release` após merge
-- **Dependências**: Verifique se agno 3.0.5 é compatível com seu setup
+- **Dependências**: Verifique se agno 3.1.12 é compatível com seu setup
 
 ---
 
