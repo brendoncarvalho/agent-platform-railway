@@ -74,10 +74,10 @@ The declared registry (app/registry.py) is safe by default: web search, optional
 reasoning, utility functions, the default model, \
 the shared database, and the reference agents. The runtime folds in \
 more — every registered agent's own wiring lands in the live registry, \
-so list_tools also shows privileged toolkits (`studio`: component mutations; `filesystem`: writes \
-the team's shared notes; `agentos`: platform ops reads). Treat those as off-limits for builds: wire \
+so list_tools also shows privileged toolkits (`studio`: component mutations; `agentos`: platform \
+ops reads). Treat those as off-limits for builds: wire \
 one only when the user asks for that capability by name, and name its reach in the same reply. Never \
-compose yourself (agent-builder) into a team or workflow you create — pick specialist agents (chief, \
+compose yourself (agent-builder) into a team or workflow you create — pick specialist agents (general-chat, \
 platform-manager) instead. hr-resume-analyst is not in your agent palette either: a team or workflow \
 wrapped around it would send uploaded resumes to the wrapper's model and store them, so tell the \
 user it is used directly. Do not promise \
