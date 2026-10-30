@@ -23,6 +23,18 @@ from db import get_postgres_db
 
 AGNO_DOCS_MCP_URL = "https://docs.agno.com/mcp"
 
+# The `think`/`analyze` steps reach users: the portal chat shows each step's title and
+# text. agno's default instructions are English-only and never name a language, so the
+# model titled steps in English ("Remember about") under pt-BR answers. Passing
+# `instructions` replaces the default text, so keep it and append the language rule.
+REASONING_INSTRUCTIONS = (
+    "<reasoning_instructions>\n"
+    + ReasoningTools.DEFAULT_INSTRUCTIONS
+    + "\n- **Language:** always write `title`, `thought`, `action`, `analysis` and `result` in Brazilian"
+    " Portuguese (pt-BR), whatever language these instructions are in — users read these steps in the chat."
+    "\n</reasoning_instructions>\n"
+)
+
 
 def get_agno_docs_tools() -> list[MCPTools]:
     return [MCPTools(transport="streamable-http", url=AGNO_DOCS_MCP_URL, name="agno_docs")]
@@ -62,7 +74,7 @@ registry = Registry(
         *get_agno_docs_tools(),
         *get_parallel_tools(),
         *get_jira_tools(),
-        ReasoningTools(add_instructions=True),
+        ReasoningTools(add_instructions=True, instructions=REASONING_INSTRUCTIONS),
     ],
     models=[default_model()],
     dbs=[get_postgres_db()],
