@@ -38,8 +38,19 @@ services:
     expose:
       - "8000"
 
+    # /health is public (exempt from JWT) and only answers once the lifespan startup has finished.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS http://127.0.0.1:8000/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
     environment:
-      RUNTIME_ENV: ${RUNTIME_ENV:-dev}
+      # prd turns on JWT auth: the app refuses to serve without JWT_VERIFICATION_KEY.
+      RUNTIME_ENV: ${RUNTIME_ENV:-prd}
       AGNO_DEBUG: ${AGNO_DEBUG:-False}
       WAIT_FOR_DB: "True"
 
@@ -52,7 +63,39 @@ services:
       DB_DATABASE: ${DB_DATABASE:-ai}
       DB_DRIVER: postgresql+psycopg
 
+      # Defaults below mirror the code defaults: an empty string is not the same as unset.
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-~openai/gpt-mini-latest}
+      PARALLEL_API_KEY: ${PARALLEL_API_KEY:-}
+
+      JWT_VERIFICATION_KEY: ${JWT_VERIFICATION_KEY:-}
+      MCP_CONNECT_SECRET: ${MCP_CONNECT_SECRET:-}
+      AGENTOS_MCP_SIGNING_KEY: ${AGENTOS_MCP_SIGNING_KEY:-}
+
+      JIRA_AUTH_TYPE: ${JIRA_AUTH_TYPE:-}
+      JIRA_SERVER_URL: ${JIRA_SERVER_URL:-}
+      JIRA_USERNAME: ${JIRA_USERNAME:-}
+      JIRA_TOKEN: ${JIRA_TOKEN:-}
+      JIRA_PASSWORD: ${JIRA_PASSWORD:-}
+      JIRA_OAUTH_CLIENT_ID: ${JIRA_OAUTH_CLIENT_ID:-}
+      JIRA_OAUTH_CLIENT_SECRET: ${JIRA_OAUTH_CLIENT_SECRET:-}
+      JIRA_OAUTH_ACCESS_TOKEN: ${JIRA_OAUTH_ACCESS_TOKEN:-}
+      JIRA_CLOUD_ID: ${JIRA_CLOUD_ID:-}
+      JIRA_OAUTH_ACCESS_TOKEN_SECRET: ${JIRA_OAUTH_ACCESS_TOKEN_SECRET:-}
+      JIRA_OAUTH_CONSUMER_KEY: ${JIRA_OAUTH_CONSUMER_KEY:-}
+      JIRA_OAUTH_KEY_CERT: ${JIRA_OAUTH_KEY_CERT:-}
+      JIRA_ENABLE_MUTATIONS: ${JIRA_ENABLE_MUTATIONS:-False}
+
+      ROCKETCHAT_WEBHOOK_TOKEN: ${ROCKETCHAT_WEBHOOK_TOKEN:-}
+      ROCKETCHAT_AGENT_ID: ${ROCKETCHAT_AGENT_ID:-jira-ticket-responder}
+      ROCKETCHAT_BOT_USERNAME: ${ROCKETCHAT_BOT_USERNAME:-}
+
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
+
+      ENABLE_DEPLOY_CHECK: ${ENABLE_DEPLOY_CHECK:-True}
+      EVALS_TAG: ${EVALS_TAG:-smoke}
 
     depends_on:
       agentos-db:

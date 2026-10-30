@@ -79,7 +79,8 @@ if MCP_CONNECT_SECRET:
     mcp_auth = AgentOSBuiltinAuth(
         url=agentos_url,
         secret=MCP_CONNECT_SECRET,
-        signing_key_material=getenv("AGENTOS_MCP_SIGNING_KEY"),
+        # `or None`: an empty value (e.g. an unset compose variable) means "generate and persist a key".
+        signing_key_material=getenv("AGENTOS_MCP_SIGNING_KEY") or None,
     )
 
 
