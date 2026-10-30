@@ -18,11 +18,12 @@ from agno.tools.mcp import MCPTools
 from agno.tools.parallel import ParallelTools
 
 from app.settings import default_model
+from app.web_tools import SharedParallelTools
 from db import get_postgres_db
 
 # Configurar ferramentas de web: Parallel API se disponível, caso contrário MCP
 if getenv("PARALLEL_API_KEY"):
-    web_tools: ParallelTools | MCPTools = ParallelTools()
+    web_tools: ParallelTools | MCPTools = SharedParallelTools()
 else:
     # Aumentar timeout para lidar com extração de páginas web
     web_tools = MCPTools(

@@ -29,13 +29,14 @@ from agno.tools.mcp import MCPTools
 from agno.tools.parallel import ParallelTools
 
 from app.settings import default_model
+from app.web_tools import SharedParallelTools
 from db import get_postgres_db
 
 # When PARALLEL_API_KEY is set, use the parallel-web SDK.
 # Without a key, fall back to the keyless MCP.
 # AgentOS handles MCP connect/close as part of its lifespan.
 if getenv("PARALLEL_API_KEY"):
-    web_tools: ParallelTools | MCPTools = ParallelTools()
+    web_tools: ParallelTools | MCPTools = SharedParallelTools()
 else:
     # Increase timeout to 30 seconds to handle web_fetch page extraction.
     web_tools = MCPTools(
