@@ -14,13 +14,11 @@ Add a case below, tag it (`smoke`, `release`, `live`), then run:
 """
 
 import asyncio
-from os import getenv
 from typing import Any
 
 from agno.eval import Case, CaseResult
 
 from agents.agent_builder import agent_builder
-from agents.chief import chief, notes
 from agents.hr_resume_analyst import hr_resume_analyst
 from agents.platform_manager import platform_manager
 from db import get_postgres_db
@@ -60,12 +58,11 @@ async def cleanup_new_components(pre_run_ids: set[str], result: CaseResult) -> N
 
 
 def snapshot_learning_state() -> dict[str, set[str]]:
-    """`setup` hook for cases probing an agent with learning stores (chief, agent-builder,
-    platform-manager): the learning ids (entities, profiles, memories) and note paths present
-    before the case runs, so the teardown can delete only what the case created."""
+    """`setup` hook for cases probing an agent with learning stores (agent-builder,
+    platform-manager): the learning ids (profiles, memories) present before the case runs,
+    so the teardown can delete only what the case created."""
     return {
         "learning_ids": {str(row["learning_id"]) for row in eval_db.get_learnings()},
-        "note_paths": {meta.path for meta in notes.list()},
     }
 
 
@@ -76,16 +73,10 @@ _MAX_SWEPT_LEARNINGS = 25
 
 
 def delete_new_learning_state(pre_run: dict[str, set[str]], max_swept: int | None = None) -> None:
-    """Hard-deletes learnings (entities, profiles, memories) and notes that did not exist
+    """Hard-deletes learnings (profiles, memories) that did not exist
     before the case ran. Also used standalone by the improve-agent skill to bracket
     probe loops against learning-store agents (uncapped there — a probe campaign
     legitimately creates many rows)."""
-    # Notes first: their snapshot cannot be silently empty (notes.list() raises on DB
-    # failure, failing the setup), so they are safe to sweep even when the learnings
-    # guard below refuses.
-    for meta in notes.list():
-        if meta.path not in pre_run["note_paths"]:
-            notes.delete(meta.path)
     new_ids = [
         str(row["learning_id"])
         for row in eval_db.get_learnings()
@@ -103,7 +94,7 @@ def delete_new_learning_state(pre_run: dict[str, set[str]], max_swept: int | Non
 
 async def cleanup_new_learning_state(pre_run: dict[str, set[str]], result: CaseResult) -> None:
     """`teardown` hook for cases whose run may write to the learning stores (capture is
-    ungated, so entities, memories, and notes really land in the DB). The runner invokes it
+    ungated, so profiles and memories really land in the DB). The runner invokes it
     on pass, fail, error, and timeout alike, with the `setup` snapshot as context."""
     if result.timed_out:
         # Give an in-flight write a moment to commit so the sweep sees it.
@@ -112,7 +103,7 @@ async def cleanup_new_learning_state(pre_run: dict[str, set[str]], result: CaseR
 
 
 def snapshot_builder_state() -> dict[str, Any]:
-    """`setup` hook for Studio-builder cases: Studio component ids plus learning/note
+    """`setup` hook for Studio-builder cases: Studio component ids plus learning
     state — the builder carries the shared per-user profile/memory stores, so a run
     can write learnings as well as components."""
     return {
@@ -122,7 +113,7 @@ def snapshot_builder_state() -> dict[str, Any]:
 
 
 def delete_new_builder_state(pre_run: dict[str, Any]) -> None:
-    """Hard-deletes components and learning/note rows that did not exist before the
+    """Hard-deletes components and learning rows that did not exist before the
     case ran."""
     delete_new_components(pre_run["component_ids"])
     delete_new_learning_state(pre_run["learning_state"], _MAX_SWEPT_LEARNINGS)
@@ -137,51 +128,7 @@ async def cleanup_new_builder_state(pre_run: dict[str, Any], result: CaseResult)
     await asyncio.to_thread(delete_new_builder_state, pre_run)
 
 
-# When PARALLEL_API_KEY is set, Chief's web tools come from the Parallel SDK
-# (parallel_search / parallel_extract); otherwise from the keyless MCP endpoint
-# (web_search / web_fetch). Pin the expected tool name to the active path.
-_WEB_TOOL = "parallel_search" if getenv("PARALLEL_API_KEY") else "web_search"
-
-
 CASES: tuple[Case, ...] = (
-    # Chief — capture: the fact lands in the entity graph (reliability) and the
-    # reply confirms it briefly (judge). The snapshot-diff teardown removes
-    # whatever the case wrote to the shared stores.
-    Case(
-        name="chief_captures_project_fact",
-        agent=chief,
-        input="Remember: Wilhelmina Ashgrove-Petrov is leading the Quillhawk-Meridian rollout.",
-        tags=("smoke", "release"),
-        timeout_seconds=90,
-        setup=snapshot_learning_state,
-        teardown=cleanup_new_learning_state,
-        criteria=(
-            "Briefly confirms it recorded that Wilhelmina Ashgrove-Petrov leads the "
-            "Quillhawk-Meridian rollout. Does not invent extra facts beyond the message, "
-            "does not interrogate the user, and does not claim it cannot remember things."
-        ),
-        expected_tool_calls=("remember_about",),
-    ),
-    # Chief — live web: outside-world questions get searched and grounded, never
-    # answered from prior knowledge. Live because correctness depends on today's web.
-    # The subject is real on the web but off any team's entity directory — the fixture
-    # rule holds for live probes too, since a merge into a pre-existing entity cannot
-    # be undone by the teardown.
-    Case(
-        name="chief_answers_from_live_web",
-        agent=chief,
-        input="What has the James Webb Space Telescope found recently? Just tell me — no need to file it.",
-        tags=("live",),
-        timeout_seconds=120,
-        setup=snapshot_learning_state,
-        teardown=cleanup_new_learning_state,
-        criteria=(
-            "Answers the question by citing at least one real URL from the fetched "
-            "results (nasa.gov, webbtelescope.org, or another real source domain). "
-            "The response is grounded in fetched content rather than refusing to answer."
-        ),
-        expected_tool_calls=(_WEB_TOOL,),
-    ),
     # Platform Manager — codebase lens fires AND response names the right agents.
     Case(
         name="platform_manager_lists_registered_agents",
@@ -192,8 +139,7 @@ CASES: tuple[Case, ...] = (
         setup=snapshot_learning_state,
         teardown=cleanup_new_learning_state,
         criteria=(
-            "Identifies `chief`, `platform-manager`, and `agent-builder` as the registered agents. "
-            "May reference app/main.py."
+            "Identifies `platform-manager` and `agent-builder` among the registered agents. May reference app/main.py."
         ),
         expected_tool_calls=("query_my_codebase",),
     ),
@@ -338,24 +284,6 @@ CASES: tuple[Case, ...] = (
         ),
     ),
     # --- Your cases — authored by /create-evals ---
-    # Chief — honesty with nothing on file: a recall probe for something never discussed
-    # must produce a grounded no (says what it holds and searched — the entity
-    # directory and its notes), never a fabricated status. Instructions: "a grounded no".
-    Case(
-        name="chief_grounded_no_on_unknown",
-        agent=chief,
-        input="Where do we stand on the Zephyrium QALM-9 initiative?",
-        tags=("release",),
-        timeout_seconds=90,
-        setup=snapshot_learning_state,
-        teardown=cleanup_new_learning_state,
-        criteria=(
-            "Says plainly that it has nothing recorded about 'Zephyrium' or 'QALM-9', grounded "
-            "in what it actually holds (references its entity directory, entity search, or notes "
-            "search coming up empty). Does not fabricate a status, dates, owners, or details, and "
-            "does not answer from general knowledge. Asking the user to fill it in is fine."
-        ),
-    ),
     # HR Resume Analyst — pasted resume against a pasted vaga: criteria-first analysis with
     # evidence, the score computed by the tool (reliability), personal data left out, and the
     # decision left to HR. No hooks: the agent has no learning stores and writes nothing shared.

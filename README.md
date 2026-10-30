@@ -28,7 +28,7 @@ Your coding agent drives the whole flow: it checks Docker, sets up `.env`, boots
 
 This codebase comes with:
 
-- **Chief, your team's mascot.** "Chief, we're going with PlanetScale over RDS." "Chief, zak ran a good launch." Tell it anything — decisions, who's on what, what you learned — and it files the who and the why, learns how you work, and connects the dots when someone asks what's happening. Every frontend talks to the same Chief: what you tell it in Slack is there when you ask from claude.ai or ChatGPT.
+- **General Chat, your team's assistant.** A pt-BR conversational agent with web search: it answers from current, cited sources when the question needs them and learns how each user likes to work. It is the default agent on Slack, and the same assistant answers from claude.ai, ChatGPT, or any MCP client.
 - **Two platform agents** that help you build and run the platform from your favorite AI apps like Claude and ChatGPT. **Agent Builder** creates agents, teams, and workflows using the AgentOS Studio. **Platform Manager** understands, monitors, and explains the platform: codebase questions, eval history, deployment checks, schedules.
 - **Jira Ticket Responder** answers Jira support tickets in pt-BR using guarded tools: it can comment on any issue, edit only comments it created, move status, set original estimates, and assign owners when explicitly requested, and never deletes Jira content.
 - **HR Resume Analyst** supports resume screening in pt-BR: attach resumes as PDF, DOCX, or TXT (or paste the text) with the job description, and it scores each one per criterion with evidence from the resume, suggests interview questions, and leaves the decision to the recruiter. Files are parsed on the server — only the extracted text goes to the model.
@@ -71,9 +71,9 @@ Confirm your AgentOS is running at [http://localhost:8000/docs](http://localhost
 
 Click **Chat** under **Platform Manager** and ask: "How healthy is the platform?" It answers from the codebase and runtime data — eval history, deployment checks, schedules, and the component you just built.
 
-### Step 5: Meet Chief
+### Step 5: Meet General Chat
 
-Click **Chat** under **Chief** and tell it what you're working on: "Hey Chief — I'm building a support bot." It files the who and what as entities, the why as notes, and what it learns about you stays yours. From then on, tag it in from anywhere — this UI, Slack, claude.ai, ChatGPT — and ask "Chief, what's happening?": same thread everywhere.
+Click **Chat** under **Agente conversação** (`general-chat`) and ask something that needs current information: "Pesquise as últimas novidades sobre agentes de IA." It searches the web, answers in pt-BR, and cites the URLs it used; what it learns about how you like to work stays yours. The same agent answers from Slack, claude.ai, ChatGPT, or any MCP client.
 
 ## Run in production
 
@@ -248,7 +248,7 @@ https://<agentos-domain>/rocketchat/webhook
 ```
 
 Set the webhook token in `ROCKETCHAT_WEBHOOK_TOKEN`. By default messages go to
-`jira-ticket-responder`; change `ROCKETCHAT_AGENT_ID` to `ti-team`, `chief`, or
+`jira-ticket-responder`; change `ROCKETCHAT_AGENT_ID` to `ti-team` or
 `general-chat` if needed.
 
 ## Environment variables
@@ -268,7 +268,7 @@ Set the webhook token in `ROCKETCHAT_WEBHOOK_TOKEN`. By default messages go to
 | `EVALS_TAG` | no | `smoke` | Eval tag run by the run-evals workflow. |
 | `EVALS_CASE_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for run-evals runs; applies only to cases that don't set their own `timeout_seconds`. |
 | `EVALS_SUITE_TIMEOUT_SECONDS` | no | `900` | Whole-suite timeout for run-evals runs; per-case timeouts are the granular limit. The default bounds the `smoke` tag's worst case (incl. builder-case teardown). |
-| `PARALLEL_API_KEY` | no | none | Authenticates Chief's and the Studio registry's web search tools (Parallel SDK when set; keyless MCP fallback). |
+| `PARALLEL_API_KEY` | no | none | Authenticates General Chat's and the Studio registry's web search tools (Parallel SDK when set; keyless MCP fallback). |
 | `JIRA_AUTH_TYPE` | no | inferred | Jira auth mode: `basic`, `oauth2`, or `oauth1`. Inferred from the OAuth variables when omitted; otherwise defaults to `basic`. |
 | `JIRA_SERVER_URL` / `JIRA_USERNAME` / `JIRA_TOKEN` or `JIRA_PASSWORD` | no | none | Basic Jira auth. When set, exposes guarded Jira tools in the Studio registry. Defaults to read-only search/get issue. |
 | `JIRA_OAUTH_CLIENT_ID` / `JIRA_OAUTH_CLIENT_SECRET` / `JIRA_CLOUD_ID` | no | none | Jira Cloud OAuth 2.0 service-account credentials. Set `JIRA_AUTH_TYPE=oauth2`; the app requests short-lived access tokens with `grant_type=client_credentials`. |
@@ -276,7 +276,7 @@ Set the webhook token in `ROCKETCHAT_WEBHOOK_TOKEN`. By default messages go to
 | `JIRA_OAUTH_ACCESS_TOKEN_SECRET` / `JIRA_OAUTH_CONSUMER_KEY` / `JIRA_OAUTH_KEY_CERT` or `JIRA_OAUTH_KEY_CERT_FILE` | no | none | Jira OAuth 1.0 credentials. Set `JIRA_AUTH_TYPE=oauth1`; `JIRA_SERVER_URL` is also required. |
 | `JIRA_ENABLE_MUTATIONS` | no | `False` | Set `True` to expose guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content. |
 | `ROCKETCHAT_WEBHOOK_TOKEN` | no | none | Enables the Rocket.Chat outgoing webhook endpoint at `/rocketchat/webhook`. Set this to the token configured in Rocket.Chat. |
-| `ROCKETCHAT_AGENT_ID` | no | `jira-ticket-responder` | Agent or team used for Rocket.Chat messages. Options: `ti-team`, `jira-ticket-responder`, `chief`, `general-chat`. |
+| `ROCKETCHAT_AGENT_ID` | no | `jira-ticket-responder` | Agent or team used for Rocket.Chat messages. Options: `ti-team`, `jira-ticket-responder`, `general-chat`. |
 | `ROCKETCHAT_BOT_USERNAME` | no | none | Optional bot username to strip from messages, for example when Rocket.Chat sends `@bot text`. |
 | `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | no | none | Both must be set to enable the optional Slack interface. |
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` | no | matches compose | Postgres connection. |
