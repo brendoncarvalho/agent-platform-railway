@@ -12,7 +12,6 @@ from agno.tools.mcp import MCPTools
 from agno.tools.parallel import ParallelTools
 from agno.tools.reasoning import ReasoningTools
 
-from agents.chief import chief
 from agents.crm_note_autofix import crm_note_autofix
 from agents.general_chat import general_chat
 from agents.jira_ticket_responder import jira_ticket_responder
@@ -80,5 +79,5 @@ registry = Registry(
     models=[default_model(), *(default_model(id=model_id) for model_id in STUDIO_MODEL_IDS)],
     dbs=[get_postgres_db()],
     functions=[route_component_type, score_eval_status],
-    agents=[chief, platform_manager, crm_note_autofix, general_chat, jira_ticket_responder],
+    agents=[platform_manager, crm_note_autofix, general_chat, jira_ticket_responder],
 )
