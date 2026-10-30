@@ -113,8 +113,9 @@ agent_builder = Agent(
             # The build palette is pinned to the agents declared in app/registry.py. AgentOS later adds
             # every served agent to the live registry, and the HR Resume Analyst must stay out: a team or
             # workflow wrapped around it applies agno's media defaults, so uploaded resumes would reach
-            # the wrapper's model provider and the run store.
-            include_agents=list(registry.agents),
+            # the wrapper's model provider and the run store. The registry also types external agents
+            # (ClaudeAgent/CodexAgent) since agno 3.1.5; none are registered, and StudioTools takes Agent only.
+            include_agents=[agent for agent in registry.agents if isinstance(agent, Agent)],
             db=get_postgres_db(),
             create_agents=True,
             create_teams=True,
