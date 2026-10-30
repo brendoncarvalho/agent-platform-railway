@@ -18,7 +18,7 @@ from agents.general_chat import general_chat
 from agents.jira_ticket_responder import jira_ticket_responder
 from agents.platform_manager import platform_manager
 from app.jira_tools import get_jira_tools
-from app.settings import default_model
+from app.settings import STUDIO_MODEL_IDS, default_model
 from app.web_tools import SharedParallelTools
 from db import get_postgres_db
 
@@ -77,7 +77,7 @@ registry = Registry(
         *get_jira_tools(),
         ReasoningTools(add_instructions=True, instructions=REASONING_INSTRUCTIONS),
     ],
-    models=[default_model()],
+    models=[default_model(), *(default_model(id=model_id) for model_id in STUDIO_MODEL_IDS)],
     dbs=[get_postgres_db()],
     functions=[route_component_type, score_eval_status],
     agents=[chief, platform_manager, crm_note_autofix, general_chat, jira_ticket_responder],

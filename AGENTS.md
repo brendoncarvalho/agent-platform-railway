@@ -22,7 +22,7 @@ AgentOS  (app/main.py)
 Shared:
 - PostgreSQL + pgvector for sessions, memory, knowledge.
 - All three reference agents wire the LearningMachine's per-user profile and memory stores over the shared DB — one human, one self across every agent. Entities and notes stay Chief's.
-- `app.settings.default_model()` returns `OpenRouter(id=OPENROUTER_MODEL or "~openai/gpt-mini-latest")` — bump the model in one place. agno's `OpenRouter` caps output at 1024 tokens unless told otherwise; an agent with long answers passes `default_model(max_tokens=...)` (the HR Resume Analyst does).
+- `app.settings.default_model()` returns `OpenRouter(id=OPENROUTER_MODEL or "~openai/gpt-mini-latest")` — bump the model in one place. agno's `OpenRouter` caps output at 1024 tokens unless told otherwise; an agent with long answers passes `default_model(max_tokens=...)` (the HR Resume Analyst does). `default_model(id=...)` picks another OpenRouter model; the extra models offered in AgentOS Studio are listed in `STUDIO_MODEL_IDS` and registered in `app/registry.py`.
 - `app.registry.registry` exposes the safe Studio registry Agent Builder can use: Agno docs MCP, web search, optional Jira tools when `JIRA_*` credentials are configured (read-only unless `JIRA_ENABLE_MUTATIONS=True`, which exposes guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content), reasoning tools, utility functions, the default model, the shared DB, and the reference agents (chief, platform-manager). At runtime agno folds every registered agent's own wiring into the live registry too (`studio`, Chief's `filesystem` notes, the `agentos` ops toolkit) — Agent Builder's instructions treat those as off-limits for builds unless the user asks for the capability by name.
 - Scheduler enabled by default (`scheduler=True`); `app/schedules.py` registers schedules from the lifespan. Deployment check runs daily **on** by default — set `ENABLE_DEPLOY_CHECK=False` to disable it. The run-evals schedule is always registered but ships **disabled** (it uses model calls) — flip it on from the AgentOS UI when you want scheduled eval runs; the toggle survives reboots.
 - Rocket.Chat webhook lights up automatically when `ROCKETCHAT_WEBHOOK_TOKEN` is set. Slack remains optional when both `SLACK_BOT_TOKEN` and `SLACK_SIGNING_SECRET` are set.
@@ -35,7 +35,7 @@ Shared:
 | File | Purpose |
 |------|---------|
 | [`app/main.py`](app/main.py) | AgentOS entrypoint — lifespan hook, conditional Slack, conditional MCP OAuth, JWT gate. |
-| [`app/settings.py`](app/settings.py) | `default_model()` factory. |
+| [`app/settings.py`](app/settings.py) | `default_model()` factory and `STUDIO_MODEL_IDS` (extra Studio models). |
 | [`app/registry.py`](app/registry.py) | Safe Studio registry used by Agent Builder — docs MCP, web tools, optional Jira tools, utility functions, reference agents. |
 | [`app/config.yaml`](app/config.yaml) | UI manifest per component (keyed by `id`): description + quick prompts. |
 | [`agents/chief.py`](agents/chief.py) | The team mascot — LearningMachine (profile, memory, entities in agentic mode) + FileSystem notes + web tools (Parallel SDK or keyless MCP); the Slack default agent. |
