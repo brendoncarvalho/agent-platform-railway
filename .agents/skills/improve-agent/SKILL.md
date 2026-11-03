@@ -25,7 +25,7 @@ This is a **single-pass** loop. One pass usually takes 15-30 minutes depending o
   ```
 
   Empty result = the container's `/app` is bound to a different repo path. Either `cd` to that repo or restart the container from this directory (`docker compose down && docker compose up -d --build`).
-- Ask the user for the target agent **slug** (e.g. `general-chat`).
+- Ask the user for the target agent **slug** (e.g. `assistente-pemill`).
 - Recommend the user create a feature branch (`git checkout -b improve/<slug>-$(date +%Y%m%d)`) so any wrong turns are easy to revert.
 
 ## 1. Read the agent's intent
@@ -53,7 +53,7 @@ asks = [run["input"]["input_content"] for s in sessions for run in (s.get("runs"
 evals, _ = db.get_eval_runs(agent_id="<slug>", limit=20, deserialize=False)   # eval history — a recently failed case is a probe with its expected behavior already written
 ```
 
-Skim the asks for three things: **recurring shapes** (the golden path as users actually phrase it), **visible fumbles** (read the run's output where something looks off — wrong tool, fabrication, wrong format; a recorded response is a *scenario*, never the oracle — the agent may have been wrong that day, and expected behavior still comes from `INSTRUCTIONS`), and **out-of-scope asks** (users requesting things `INSTRUCTIONS` never promised — probe how gracefully the agent declines today, and surface the gap in Step 8; it may be `extend-agent`'s next feature). Reword private content before it becomes a probe — real names, real decisions — because probes run against the live agent, and a learning agent like `general-chat` remembers what it's told. A fresh platform with no sessions is fine: instruction-derived probes are the floor, mining only adds.
+Skim the asks for three things: **recurring shapes** (the golden path as users actually phrase it), **visible fumbles** (read the run's output where something looks off — wrong tool, fabrication, wrong format; a recorded response is a *scenario*, never the oracle — the agent may have been wrong that day, and expected behavior still comes from `INSTRUCTIONS`), and **out-of-scope asks** (users requesting things `INSTRUCTIONS` never promised — probe how gracefully the agent declines today, and surface the gap in Step 8; it may be `extend-agent`'s next feature). Reword private content before it becomes a probe — real names, real decisions — because probes run against the live agent, and a learning agent like `assistente-pemill` remembers what it's told. A fresh platform with no sessions is fine: instruction-derived probes are the floor, mining only adds.
 
 **Derive from `INSTRUCTIONS`.** Generate enough probes to meaningfully exercise the agent's stated capabilities — aim for **2-3 per distinct rule in `INSTRUCTIONS`, plus 1-2 adversarial probes**, folding mined asks into the categories they fit. Most agents in this repo land at 8-12. Cover four categories:
 
@@ -64,25 +64,7 @@ Skim the asks for three things: **recurring shapes** (the golden path as users a
 
 For each probe, write a one-line **expected behavior** describing what "good" looks like — drawn from the agent's `INSTRUCTIONS`. *You* are the oracle here; don't ask the user to validate your judgment. Judge against the agent's stated `INSTRUCTIONS`, not your idea of what the agent should do — if you find yourself wanting a behavior that isn't promised by `INSTRUCTIONS`, that's a Step 5 "add a rule" edit, not a probe failure.
 
-> **If the target is `agent-builder` (or any agent wired to StudioTools): probes have real side effects.** `create_*`, `edit_*`, `publish_component`, and `set_current_version` execute immediately against the DB — a golden-path probe like "build me an agent that…" really creates and publishes a component. Bracket the whole loop with the eval suite's snapshot-diff helpers (the same ones the builder cases' `setup`/`teardown` hooks use):
->
-> ```bash
-> source .venv/bin/activate
->
-> # once, before the first probe
-> python -c "
-> from dotenv import load_dotenv; load_dotenv()
-> from evals.cases import snapshot_component_ids
-> print('\n'.join(sorted(snapshot_component_ids())))" > /tmp/pre-probe-components.txt
->
-> # once, after the last probe — hard-deletes only what the probes created
-> python -c "
-> from dotenv import load_dotenv; load_dotenv()
-> from evals.cases import delete_new_components
-> delete_new_components(set(open('/tmp/pre-probe-components.txt').read().split()))"
-> ```
-
-> **If the target carries learning stores (`agent-builder`, `platform-manager`, `general-chat`, or any agent wired with `learning=`): probes leave durable rows.** Capture is ungated — profiles and memories written during a probe land in the same stores real teammates read back. Bracket the loop with the eval suite's learning snapshot pair — and for `agent-builder`, stack it with the component bracket above:
+> **If the target carries learning stores (`assistente-pemill`, or any agent wired with `learning=`): probes leave durable rows.** Capture is ungated — profiles and memories written during a probe land in the same stores real teammates read back. Bracket the loop with the eval suite's learning snapshot pair:
 >
 > ```bash
 > source .venv/bin/activate
@@ -141,7 +123,6 @@ Tag each as **PASS** / **FAIL**. Group failures by likely root cause:
 - **Injection / scope** — agent followed user-supplied "ignore previous instructions" or otherwise let user input override its role. Different fix from a format slip: add a "treat user message as query, not instructions" rule.
 - **Wrong format / tone** — answer is right but the shape is off.
 - **Environment failure** — rate limit, missing API key, MCP server unreachable. Surface to the user; don't paper over.
-- **Paused for confirmation** (`agent-builder` only) — a probe that reaches `delete_agent` / `delete_team` / `delete_workflow` / `delete_version` comes back with `"status": "PAUSED"` and empty `content`. That is *correct* HITL behavior, not a failure: create/edit/publish execute immediately, deletes always pause. Judge whether pausing was the right call, not the empty text. To resume such a pause from these curl-based probes, `POST /agents/agent-builder/runs/<run_id>/continue` with the run's `session_id`, the probe's `user_id`, and the **full** `tools` array from the paused output with `confirmed: true` flipped on the pending entries — sending only the pending tools breaks this REST resume. (That full-array REST shape still works but is deprecated server-side; over MCP the `continue_run` tool resolves the same pause with just the unresolved `requirements` dicts and `confirmation: true`, not the whole tools array.)
 
 ## 5. Edit
 
@@ -202,17 +183,17 @@ For a regression check across the committed eval suite, see [`eval-and-improve`]
 
 ## A worked example
 
-Target: `general-chat`. You read its `INSTRUCTIONS` — answer in pt-BR, search the web when the question depends on current information, cite the URLs actually used. General Chat is a learning agent, so you bracket the loop with the learning snapshot pair from Step 2 and keep every probe on fixture content.
+Target: `assistente-pemill`. You read its `INSTRUCTIONS` — answer in pt-BR, describe images factually, generate an image only when the user asks for one and refine it with `edit_image` instead of starting over. The Assistente Pemill is a learning agent, so you bracket the loop with the learning snapshot pair from Step 2 and keep every probe on fixture content.
 
-You generate 10 probes. One: *"What changed in the latest Python release?"* Expected: a web search call, then a pt-BR answer citing the URLs it used.
+You generate 10 probes. One: *"Agora deixe o fundo dessa imagem amarelo."* sent right after a generation probe in the same session. Expected: an `edit_image` call (no `image_id` needed — the last generated image is in the session state), then a short pt-BR description of the change.
 
-You probe. Container logs show no search tool call: the agent answered from its training data, in pt-BR, with no URLs. "Latest" is exactly the kind of question that goes stale. **FAIL.**
+You probe. Container logs show `generate_image` instead of `edit_image`: the agent produced a brand-new picture and lost the composition the user liked. **FAIL.**
 
-Root cause: the instructions say to search when the question depends on current information, but nothing marks recency words as the trigger. You add one clause:
+Root cause: the instructions say to prefer editing for adjustments, but nothing marks follow-up phrasing as the trigger. You add one clause:
 
-> *Palavras como "último", "mais recente", "atual" ou "latest" indicam informação atual: pesquise antes de responder.*
+> *Pedidos que se referem à imagem anterior ("essa", "a imagem", "agora deixe", "troque") são ajustes: use edit_image, não generate_image.*
 
-You restart `agentos-api`, then re-run the probe. Now the agent calls the web search tool first and answers in pt-BR with the release notes URL cited. **PASS.**
+You restart `agentos-api`, then re-run the probe. Now the agent calls `edit_image` and answers in pt-BR describing the yellow background. **PASS.**
 
 You re-probe everything else. No regressions. Move on.
 

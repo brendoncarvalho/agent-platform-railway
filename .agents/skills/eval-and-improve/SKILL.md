@@ -1,6 +1,6 @@
 ---
 name: eval-and-improve
-description: Run the eval suite (python -m evals), diagnose every failure, fix what's in scope, and loop until all cases pass. Use when evals are failing — including overnight run-evals schedule failures — or when the user wants to run, diagnose, or repair the eval suite. To author new coverage, use create-evals instead.
+description: Run the eval suite (python -m evals), diagnose every failure, fix what's in scope, and loop until all cases pass. Use when evals are failing or when the user wants to run, diagnose, or repair the eval suite. To author new coverage, use create-evals instead.
 ---
 
 # Eval and Improve
@@ -13,7 +13,7 @@ You're running the platform's eval suite, diagnosing every failure, fixing what'
 
 - Postgres reachable on 5432: `nc -z localhost 5432` returns 0. If not, `docker compose up -d agentos-db` from the source repo. (`docker compose ps` is unreliable from worktrees or alternate clones.)
 - Venv active: `source .venv/bin/activate`. If `.venv` doesn't exist (fresh checkout or worktree), run `./scripts/venv_setup.sh` first. `evals/cases.py` imports the agents directly from `agents/`, so no AgentOS server has to be running.
-- `.env` populated with `OPENAI_API_KEY` (and `PARALLEL_API_KEY` if you have one). `evals/__main__.py` loads `.env` at startup (via `python-dotenv`), so you do not need to source `.env` first. Worktrees don't inherit `.env` (it's gitignored) — copy it from the source repo if missing.
+- `.env` populated with `OPENAI_API_KEY` and `OPENROUTER_API_KEY`. `evals/__main__.py` loads `.env` at startup (via `python-dotenv`), so you do not need to source `.env` first. Worktrees don't inherit `.env` (it's gitignored) — copy it from the source repo if missing.
 
 ## 1. Run the suite
 
@@ -28,7 +28,7 @@ python -m evals -v                     # stream the full agent run with rich pan
 
 Output ends with a summary block. Exit code is 0 on all-pass, non-zero on any failure or error.
 
-**Arriving from a scheduled failure?** If the trigger is "last night's run-evals went red" rather than a local run, start from the recorded history: eval runs live in Postgres (`db.get_eval_runs()` — also visible at os.agno.com, or ask Platform Manager), so find which case failed and when, then reproduce it locally with `python -m evals --name <case>` before diagnosing. A scheduled failure that won't reproduce locally is usually environment (rate limits, a live source that moved) — note it, don't chase it with prompt edits.
+**Arriving from a remote failure?** If the trigger is a failed run elsewhere (CI, another machine) rather than a local run, start from the recorded history: eval runs live in Postgres (`db.get_eval_runs()` — also visible at os.agno.com), so find which case failed and when, then reproduce it locally with `python -m evals --name <case>` before diagnosing. A scheduled failure that won't reproduce locally is usually environment (rate limits, a live source that moved) — note it, don't chase it with prompt edits.
 
 Stderr noise around MCP teardown (`RuntimeError: Event loop is closed`, httpx timeouts) at the end of a run is harmless — only the `Eval Summary` table and exit code count.
 
@@ -99,11 +99,11 @@ Case(
     # Either or both of:
     criteria="<rubric describing a correct response>",
     expected_tool_calls=("<tool_name>",),
-    # Required whenever the case's agent has the ungated create/edit/publish
-    # Studio tools (every agent-builder case) — the snapshot-diff hooks delete
-    # whatever the run created, even on timeout:
-    setup=snapshot_builder_state,
-    teardown=cleanup_new_builder_state,
+    # Required whenever the case's agent carries learning stores (`learning=`,
+    # e.g. assistente-pemill) — the snapshot-diff hooks delete the profiles and
+    # memories the run created, even on timeout:
+    setup=snapshot_learning_state,
+    teardown=cleanup_new_learning_state,
 )
 ```
 
@@ -112,8 +112,6 @@ Run `python -m evals --name <case>` to confirm it passes against the current age
 ## 6. Track regressions over time
 
 Every case logs to Postgres via `db=eval_db`. Connect your AgentOS at [os.agno.com](https://os.agno.com) and view eval history — useful for catching slow drift on a weekly cron.
-
-For the template's opt-in scheduled check, see [`workflows/run_evals.py`](../../../workflows/run_evals.py). It runs the `${EVALS_TAG:-smoke}`-tagged cases in-process (no subprocess) and returns a compact markdown report. Its cron is always registered but ships disabled — enable it from the AgentOS UI when you want it running daily.
 
 ---
 
@@ -146,6 +144,6 @@ class Case:
 
 The runner calls `agent.arun()` once per case and feeds the response into both checks, so cases that set both fields cost one agent run, not two.
 
-Set `setup=snapshot_builder_state, teardown=cleanup_new_builder_state` (both in [`evals/cases.py`](../../../evals/cases.py)) on every case whose agent can reach the ungated create/edit/publish Studio tools (all agent-builder cases do this): setup snapshots Studio component ids plus learning state before the case and teardown hard-deletes only the new rows after, so eval runs never leave components behind and never touch pre-existing ones. The same pattern covers the other learning-store agents: `setup=snapshot_learning_state, teardown=cleanup_new_learning_state` on every case that probes `platform-manager` or `general-chat`, so profiles and memories a case *creates* are removed after it. One limit to know, because it decides how you write the case: the diff is on row identity, and a user's profile lives inside a single row. So a case that merges into a profile or memory that already existed leaves that edit behind — a superseded fact cannot be undone. Give every fixture a name no real team would have on file, and the case only ever touches rows it created.
+Set `setup=snapshot_learning_state, teardown=cleanup_new_learning_state` (both in [`evals/cases.py`](../../../evals/cases.py)) on every case that probes an agent with learning stores (`assistente-pemill`), so profiles and memories a case *creates* are removed after it. One limit to know, because it decides how you write the case: the diff is on row identity, and a user's profile lives inside a single row. So a case that merges into a profile or memory that already existed leaves that edit behind — a superseded fact cannot be undone. Give every fixture a name no real team would have on file, and the case only ever touches rows it created.
 
-If a case's expected tool name depends on env (a keyed SDK vs a keyless fallback, like the `PARALLEL_API_KEY` web tools), mirror that conditional in `evals/cases.py` — and if your shell has the var set but `.env` doesn't (or vice versa), the assertion checks the wrong tool, so sync them before debugging.
+If a case's expected tool name depends on env (e.g. `IMAGE_PROVIDER` selecting the image backend), mirror that conditional in `evals/cases.py` — and if your shell has the var set but `.env` doesn't (or vice versa), the assertion checks the wrong tool, so sync them before debugging.

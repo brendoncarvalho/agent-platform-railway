@@ -15,7 +15,7 @@
 #
 #    Usage:
 #      ./scripts/mcp_check.sh                            # quick default probe
-#      ./scripts/mcp_check.sh "What does general-chat do?" # your own question
+#      ./scripts/mcp_check.sh "Quem é você?" # your own question
 #
 ############################################################################
 
@@ -65,11 +65,11 @@ async def run_check(headers: dict | None, auth_note: str) -> None:
             start = time.perf_counter()
             result = await session.call_tool(
                 "run_agent",
-                {"agent_id": "platform-manager", "message": sys.argv[1]},
+                {"agent_id": "assistente-pemill", "message": sys.argv[1]},
                 read_timeout_seconds=None,
             )
             elapsed = time.perf_counter() - start
-            step(f"run_agent — platform-manager answered in {elapsed:.1f}s")
+            step(f"run_agent — assistente-pemill answered in {elapsed:.1f}s")
             # run_agent returns a trimmed ToolResult: content[0].text is the plain
             # answer, and structuredContent carries {run_id, session_id, status}.
             print(flush=True)

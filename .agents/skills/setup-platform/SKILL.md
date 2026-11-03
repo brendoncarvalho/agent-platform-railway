@@ -45,7 +45,7 @@ Start the platform with `docker compose up -d --build`, then poll http://localho
 
 ## 5. Prove it
 
-Run `./scripts/mcp_check.sh` — it should print "MCP OK" and a real agent answer. Quote that answer to the user — it's their platform manager talking. And let them know the platform's MCP server is live.
+Run `./scripts/mcp_check.sh` — it should print "MCP OK" and a real agent answer. Quote that answer to the user — it's the Assistente Pemill talking. And let them know the platform's MCP server is live.
 
 ## 6. Connect the AgentOS UI
 

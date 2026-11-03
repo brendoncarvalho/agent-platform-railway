@@ -93,4 +93,6 @@ assistente_pemill = Agent(
     add_history_to_context=True,
     num_history_runs=HISTORY_RUNS,
     markdown=True,
+    # Stream by default (AgentOS endpoints stream SSE unless the caller sends stream=false).
+    stream=True,
 )
