@@ -1,19 +1,12 @@
 manifest:
   # --- Agents ---
 
-  agent-builder:
-    description: "Creates agents, teams, and workflows using the AgentOS Studio."
+  assistente-pemill:
+    description: "Assistente virtual da Pemill: conversa geral em português, análise de imagens enviadas e geração/edição de imagens."
     quick_prompts:
-      - "Build an agent like general chat but sassier"
-      - "Build an agent that tracks AI news and writes a daily brief"
-      - "Build a multi-agent team with general chat and platform manager"
-
-  platform-manager:
-    description: "Understands, monitors, and explains this AgentOS. Codebase context, runtime diagnostics, usage patterns."
-    quick_prompts:
-      - "Tell me about this AgentOS"
-      - "Share some usage patterns"
-      - "Which agent is slowest, and is anything failing?"
+      - "Me ajude a redigir um e-mail para um cliente sobre atraso na entrega"
+      - "O que esta imagem mostra? (anexe uma imagem)"
+      - "Gere uma imagem de um banner comemorativo para a equipe"
 
   crm-note-autofix:
     description: "Revisor automático de registros comerciais de ligações e visitas. Corrige gramática, pontuação e clareza mantendo o sentido original."
@@ -21,13 +14,6 @@ manifest:
       - "Revise este texto de ligação comercial"
       - "Corrija a gramática deste registro de visita"
       - "Melhore a clareza deste apontamento"
-
-  general-chat:
-    description: "Assistente de conversação geral em português, com acesso a web e memória de usuário."
-    quick_prompts:
-      - "Qual é a situação atual do mercado de IA?"
-      - "Me explique sobre este assunto"
-      - "Pesquise as últimas novidades sobre..."
 
   jira-ticket-responder:
     description: "Atendimento de chamados Jira em portugues. Le chamados, comenta respostas e so edita comentarios criados pela propria ferramenta de IA."
@@ -46,21 +32,8 @@ manifest:
   # --- Teams ---
 
   ti-team:
-    description: "Time de atendimento de TI em portugues. Coordena triagem, Jira, diagnosticos e arquivos."
+    description: "Time de atendimento de TI em portugues. Coordena triagem, Jira, duvidas tecnicas e arquivos."
     quick_prompts:
       - "Triar este chamado de TI"
       - "Verifique o status do chamado JIRA-123 e sugira a resposta"
       - "Gere um PDF com o resumo deste atendimento"
-      - "Diagnostique este problema na plataforma"
-
-  # --- Workflows ---
-
-  deployment-check:
-    description: "Run a deployment check to verify the AgentOS is running correctly."
-    quick_prompts:
-      - "Run the deployment check"
-
-  run-evals:
-    description: "Run a subset of the eval suite."
-    quick_prompts:
-      - "Run the smoke evals"

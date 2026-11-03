@@ -12,23 +12,27 @@ dependencies = [
   "agnoctl==0.2.0",
   "jira==3.10.5",
   "openai",
-  "parallel-web",
   "pypdf",
   "python-docx",
   "python-dotenv",
+  "pyyaml",
   "reportlab",
 ]
 
 [project.optional-dependencies]
-dev = ["mypy", "ruff"]
+dev = ["mypy", "pytest", "pytest-asyncio", "ruff", "types-PyYAML"]
 
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["agents*", "app*", "db*", "evals*", "workflows*"]
+include = ["agents*", "app*", "db*", "evals*"]
 namespaces = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
 
 [tool.ruff]
 line-length = 120

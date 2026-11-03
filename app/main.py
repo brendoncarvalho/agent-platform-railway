@@ -11,18 +11,14 @@ from agno.os import AgentOS
 from agno.utils.log import log_info
 from fastapi import FastAPI
 
-from agents.agent_builder import agent_builder
+from agents.assistente_pemill import assistente_pemill
 from agents.crm_note_autofix import crm_note_autofix
-from agents.general_chat import general_chat
 from agents.hr_resume_analyst import hr_resume_analyst
 from agents.jira_ticket_responder import jira_ticket_responder
-from agents.platform_manager import platform_manager
 from agents.ti_team import ti_team
+from app.media_storage import get_media_storage
 from app.registry import registry
-from app.schedules import register_schedules
 from db import get_postgres_db
-from workflows.deployment_check import deployment_check
-from workflows.run_evals import run_evals
 
 # ---------------------------------------------------------------------------
 # Environment
@@ -33,7 +29,7 @@ agentos_url = getenv("AGENTOS_URL", "http://127.0.0.1:8000")
 
 # ---------------------------------------------------------------------------
 # Interfaces
-# - General Chat becomes available on Slack when both env vars are set
+# - Assistente Pemill becomes available on Slack when both env vars are set
 # ---------------------------------------------------------------------------
 SLACK_BOT_TOKEN = getenv("SLACK_BOT_TOKEN", "")
 SLACK_SIGNING_SECRET = getenv("SLACK_SIGNING_SECRET", "")
@@ -44,12 +40,12 @@ if SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET:
 
     interfaces.append(
         Slack(
-            agent=general_chat,
+            agent=assistente_pemill,
             streaming=True,
             token=SLACK_BOT_TOKEN,
             signing_secret=SLACK_SIGNING_SECRET,
             resolve_user_identity=True,
-            loading_text="Barbequeing...",
+            loading_text="Pensando...",
         )
     )
 
@@ -58,7 +54,7 @@ if SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET:
 # Base FastAPI app
 # - Custom webhook routes live here before AgentOS mounts its own routes.
 # ---------------------------------------------------------------------------
-base_app = FastAPI(title="AgentOS")
+base_app = FastAPI(title="Pemill AgentOS")
 if getenv("ROCKETCHAT_WEBHOOK_TOKEN"):
     from app.rocketchat import rocketchat_router
 
@@ -92,8 +88,6 @@ if MCP_CONNECT_SECRET:
 @asynccontextmanager
 async def lifespan(app):  # type: ignore[no-untyped-def]
     log_info("AgentOS lifespan: startup")
-    # Register schedules on startup. Idempotent and fail-soft.
-    register_schedules()
     try:
         yield
     finally:
@@ -104,7 +98,7 @@ async def lifespan(app):  # type: ignore[no-untyped-def]
 # Create AgentOS
 # ---------------------------------------------------------------------------
 agent_os = AgentOS(
-    name="AgentOS",
+    name="Pemill AgentOS",
     base_app=base_app,
     tracing=True,
     scheduler=True,
@@ -114,16 +108,15 @@ agent_os = AgentOS(
     mcp_auth=mcp_auth,
     lifespan=lifespan,
     db=get_postgres_db(),
+    # Uploaded and generated images are offloaded here and served by /sessions/{id}/media/{key}.
+    media_storage=get_media_storage(),
     agents=[
-        agent_builder,
-        platform_manager,
+        assistente_pemill,
         crm_note_autofix,
-        general_chat,
         jira_ticket_responder,
         hr_resume_analyst,
     ],
     teams=[ti_team],
-    workflows=[deployment_check, run_evals],
     interfaces=interfaces,
     registry=registry,
     config=str(Path(__file__).parent / "config.yaml"),

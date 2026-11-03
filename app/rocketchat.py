@@ -11,12 +11,12 @@ from urllib.parse import parse_qsl
 
 from fastapi import APIRouter, HTTPException, Request
 
-from agents.general_chat import general_chat
+from agents.assistente_pemill import assistente_pemill
 from agents.jira_ticket_responder import jira_ticket_responder
 from agents.ti_team import ti_team
 
 ROCKETCHAT_AGENT_MAP = {
-    "general-chat": general_chat,
+    "assistente-pemill": assistente_pemill,
     "jira-ticket-responder": jira_ticket_responder,
     "ti-team": ti_team,
 }
@@ -68,10 +68,7 @@ def _clean_rocketchat_text(text: str) -> str:
 
 
 def _rocketchat_session_id(payload: dict[str, Any]) -> str:
-    room_id = (
-        _payload_value(payload, "channel_id", "room_id", "rid", "channel_name")
-        or "unknown-room"
-    )
+    room_id = _payload_value(payload, "channel_id", "room_id", "rid", "channel_name") or "unknown-room"
     thread_id = _payload_value(payload, "thread_id", "tmid", "message_id", "_id")
     return f"rocketchat:{room_id}:{thread_id or 'main'}"
 

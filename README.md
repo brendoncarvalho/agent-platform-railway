@@ -1,291 +1,167 @@
-# AgentOS: FastAPI for Agents
+# Pemill AgentOS
 
-AgentOS turns your agents into a production API and MCP server. One AI backend that serves every frontend.
+Plataforma de agentes de IA da Pemill, construída sobre o [Agno](https://docs.agno.com) (AgentOS 3.1.x).
+Um backend FastAPI expõe os agentes como **API REST**, **interface de chat** (AgentOS UI, Slack, Rocket.Chat)
+e **MCP** (`/mcp`) para apps de IA como claude.ai, ChatGPT, Cursor e Claude Code. Postgres (pgvector) guarda
+sessões, memória de usuário e conhecimento.
 
-1. **Your product.** Call the REST API from your app: run agents, stream responses, and manage sessions, memory, and knowledge.
-2. **AgentOS UI.** Chat with agents, build new ones, inspect sessions, traces, memory, and evals from the AgentOS UI at [os.agno.com](https://os.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agentos-railway&utm_content=agentos-railway&utm_term=railway).
-3. **Coding agents.** Manage the full agent development lifecycle (create, extend, improve, eval, review) using the skills in [`.agents/skills/`](.agents/skills/).
-4. **AI apps.** Use your agents from Claude and ChatGPT using the MCP server at `/mcp`.
-5. **Chat interfaces.** Chat with your agents from Rocket.Chat, Slack, WhatsApp, Telegram, and Discord.
+## Agentes
 
-<img width="3298" height="2412" alt="AgentOS" src="https://github.com/user-attachments/assets/40a53a42-d4d2-402b-8e92-742609207957" />
+| Agente | id | O que faz |
+|---|---|---|
+| **Assistente Pemill** | `assistente-pemill` | Conversa geral em pt-BR, analisa imagens enviadas (PNG/JPEG/WEBP) e gera/edita imagens sob demanda. Histórico por sessão e memória de usuário no Postgres. |
+| Revisor de textos | `crm-note-autofix` | Revisa registros comerciais de ligações e visitas, mantendo o sentido. |
+| Atendimento Jira | `jira-ticket-responder` | Lê e comenta chamados Jira com ferramentas guardadas (`JIRA_*`). |
+| Analista de Currículos | `hr-resume-analyst` | Apoio à triagem de currículos (PDF/DOCX/texto) para o RH. |
+| Time TI (team) | `ti-team` | Coordena Atendimento Jira + Assistente Pemill e gera arquivos. |
 
-<p align="center"><em>Built on <a href="https://docs.agno.com">Agno</a>. Everything runs in your cloud, your data lives in your database.</em></p>
+## Como rodar
 
-## Get Started
+### Com Docker (recomendado)
 
-Copy this prompt into your favorite coding agent. It sets up the platform and builds your first agent with you:
-
-```text
-Help me set up my agent platform and build my first agent.
-
-Clone https://github.com/agno-agi/agentos-railway into a folder called agent-platform, cd in, and run the setup-platform skill (in .agents/skills/).
-```
-
-Your coding agent drives the whole flow: it checks Docker, sets up `.env`, boots the platform, verifies the MCP endpoint, connects the AgentOS UI, and builds your first agent with you. Prefer to drive yourself? See [Manual Setup](#manual-setup).
-
-## Built for agents
-
-This codebase comes with:
-
-- **General Chat, your team's assistant.** A pt-BR conversational agent with web search: it answers from current, cited sources when the question needs them and learns how each user likes to work. It is the default agent on Slack, and the same assistant answers from claude.ai, ChatGPT, or any MCP client.
-- **Two platform agents** that help you build and run the platform from your favorite AI apps like Claude and ChatGPT. **Agent Builder** creates agents, teams, and workflows using the AgentOS Studio. **Platform Manager** understands, monitors, and explains the platform: codebase questions, eval history, deployment checks, schedules.
-- **Jira Ticket Responder** answers Jira support tickets in pt-BR using guarded tools: it can comment on any issue, edit only comments it created, move status, set original estimates, and assign owners when explicitly requested, and never deletes Jira content.
-- **HR Resume Analyst** supports resume screening in pt-BR: attach resumes as PDF, DOCX, or TXT (or paste the text) with the job description, and it scores each one per criterion with evidence from the resume, suggests interview questions, and leaves the decision to the recruiter. Files are parsed on the server — only the extracted text goes to the model.
-- **Coding-agent skills** let Claude Code, Codex, Cursor, and other coding agents build, test, and improve the platform automatically — see [Using the platform](#using-the-platform).
-
-Trace data, agent code, evals, and system logs are all available to coding agents, so the platform can inspect and improve itself end to end.
-
-## Manual Setup
-
-### Step 1: Run locally
-
-> **Prerequisite:** [Docker](https://www.docker.com/get-started/) installed and running.
-
-```sh
-git clone https://github.com/agno-agi/agentos-railway agentos
-cd agentos
-
-# Configure credentials
+```bash
 cp example.env .env
-# Open .env and set OPENAI_API_KEY + OPENROUTER_API_KEY
-
-# Run the platform on docker
+# edite .env: OPENAI_API_KEY e OPENROUTER_API_KEY são obrigatórios
 docker compose up -d --build
 ```
 
-Confirm your AgentOS is running at [http://localhost:8000/docs](http://localhost:8000/docs).
+- API em `http://localhost:8000` (docs em `/docs`, saúde em `/health`).
+- `compose.yaml` roda em modo `dev` (sem JWT), com hot-reload de `agents/`, `app/`, `db/` e `evals/`.
+- Imagens enviadas/geradas ficam em `storage/media` (montado do repositório).
 
-### Step 2: Connect the AgentOS UI
+Para conversar pela interface, abra [os.agno.com](https://os.agno.com), **Connect OS → Local** e aponte para
+`http://localhost:8000`. O Assistente Pemill aparece com os quick prompts definidos em `app/config.yaml`.
 
-1. Open [os.agno.com](https://os.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agentos-railway&utm_content=agentos-railway&utm_term=railway) and sign in.
-2. Click **Connect OS**, enter `http://localhost:8000` as the URL, name it **Local AgentOS**, and connect.
+### Sem Docker (venv)
 
-### Step 3: Build your first agent
+Requer Python 3.12+ e [uv](https://docs.astral.sh/uv/), além de um Postgres acessível (variáveis `DB_*`).
 
-1. Click **Chat** under the **Agent Builder** agent and try the first prompt: "Build an agent that tracks AI news and writes a daily brief". Go through the agent development process.
-2. Once created, click the **Refresh** button on the top right. You should now see the "Daily AI News Brief" agent in the **Agents** dropdown. Click the newly created agent.
-3. Ask: "What's new with Anthropic?"
-
-### Step 4: Check platform health
-
-Click **Chat** under **Platform Manager** and ask: "How healthy is the platform?" It answers from the codebase and runtime data — eval history, deployment checks, schedules, and the component you just built.
-
-### Step 5: Meet General Chat
-
-Click **Chat** under **Agente conversação** (`general-chat`) and ask something that needs current information: "Pesquise as últimas novidades sobre agentes de IA." It searches the web, answers in pt-BR, and cites the URLs it used; what it learns about how you like to work stays yours. The same agent answers from Slack, claude.ai, ChatGPT, or any MCP client.
-
-## Run in production
-
-You can run the platform anywhere that supports containerized images. This codebase comes with scripts to deploy the platform to [Railway](https://railway.com) — and a coding-agent skill, [`/deploy-platform`](.agents/skills/deploy-platform/SKILL.md), that drives them for you and verifies the live platform at the end.
-
-> **Prerequisite:** [Railway CLI](https://docs.railway.com/cli#installing-the-cli) installed and `railway login` completed.
-
-### 1. Set up your production env
-
-Create a new `.env.production` file for production credentials.
-
-```sh
-cp .env .env.production          # or cp example.env .env.production
-# Edit .env.production with production values
+```bash
+./scripts/venv_setup.sh && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+cp example.env .env
+RUNTIME_ENV=dev uvicorn app.main:app --reload --port 8000
 ```
 
-Keeping a separate `.env.production` lets us use different values for local and production: different model/embedding keys, production-only credentials, a different Slack workspace.
+### Qualidade
 
-### 2. Deploy
-
-```sh
-./scripts/railway/up.sh
+```bash
+./scripts/format.sh      # ruff format + import sort
+./scripts/validate.sh    # ruff check + mypy
+python -m pytest         # testes unitários (sem chamadas a modelos)
 ```
 
-This provisions the AgentOS service and Postgres on the same private network. The script pauses and asks for a JWT verification key for authentication (see next section).
+## Testar o Assistente Pemill localmente
 
-### 3. Production Auth
+Pela UI (os.agno.com conectado ao OS local) ou pela API. Com `RUNTIME_ENV=dev` não há JWT:
 
-Token-Based Authorization is on by default. Without a `JWT_VERIFICATION_KEY` or `JWT_JWKS_FILE`, the app refuses to serve traffic in production. The platform's job is to keep your data private, so the safe default is "refuse to start" without an authentication token.
-
-Token-Based Auth gives you three things:
-
-1. **No public access.** The server rejects requests without a valid token.
-2. **Per-request identity.** Middleware parses the token and extracts the `user_id`, `session_id`, and custom claims. Each request is tied to a user and session, giving you auditability and traceability.
-3. **Granular permissions.** User tokens can run an agent and view their own sessions. Admin tokens read everyone's sessions and test any agent.
-
-During `./scripts/railway/up.sh`, the script creates your Railway domain and pauses so you can mint the key before the app starts.
-
-1. Open [os.agno.com](https://os.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agentos-railway&utm_content=agentos-railway&utm_term=railway), click **Connect OS** → **Live**, and enter your Railway domain.
-2. Name it **Live AgentOS**, flip **Token-Based Authorization (JWT)** on — the toggle is right on the connect panel — and connect. The UI generates your public key. (Already connected without it? **Settings** → **OS & Security** → **Token-Based Authorization (JWT)**.)
-3. Copy the public key.
-4. Paste the full public key into the `up.sh` prompt. The script saves it into your env file for future syncs:
-
-```sh
-JWT_VERIFICATION_KEY="-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkq...
------END PUBLIC KEY-----"
+```bash
+# Conversa (streaming SSE; use stream=false para JSON único)
+curl -s -X POST http://localhost:8000/agents/assistente-pemill/runs \
+  -F "message=Olá! Quem é você e como pode me ajudar?" -F "stream=false" \
+  -F "user_id=ti@pemill.com.br" -F "session_id=teste-1"
 ```
 
-> **Heads up.** Live AgentOS Connections are a paid feature. Use `PLATFORM30` to get 1 month off. We are working on a free trial so you don't have to pay to try.
-
-If you get something wrong, you can re-sync environment variables with `./scripts/railway/env-sync.sh`.
-
-### 4. Register your production AgentOS to MCP clients
-
-Re-run `uvx agno connect`, this time pointed at your deployed domain, to connect Claude Code, Claude Desktop, Codex, and Cursor to your production platform:
-
-```sh
-uvx agno connect --url https://<railway-domain>
+```bash
+# Análise de imagem (upload PNG/JPEG/WEBP até IMAGE_INPUT_MAX_MB)
+curl -s -X POST http://localhost:8000/agents/assistente-pemill/runs \
+  -F "message=Descreva esta imagem" -F "stream=false" -F "session_id=teste-1" \
+  -F "files=@/caminho/para/foto.jpg"
 ```
 
-For **claude.ai and ChatGPT (web)**: add `https://<railway-domain>/mcp` as a custom connector in the chat app's connector settings. Leave the form's optional OAuth fields (client ID / client secret) empty. Click **Connect** and, on the consent page, enter the `MCP_CONNECT_SECRET` that `up.sh` generated during deploy (saved in `.env.production`).
-
-### 5. Verify
-
-You can check the logs on the Railway dashboard, or by running the following command:
-
-```sh
-railway logs --service agent-os
+```bash
+# Geração e, na mesma sessão, edição da última imagem gerada
+curl -s -X POST http://localhost:8000/agents/assistente-pemill/runs \
+  -F "message=Gere uma imagem de um caminhão azul em estilo flat" -F "stream=false" -F "session_id=teste-1"
+curl -s -X POST http://localhost:8000/agents/assistente-pemill/runs \
+  -F "message=Deixe o fundo amarelo" -F "stream=false" -F "session_id=teste-1"
 ```
 
-### Redeploy after code changes
+A resposta traz `images[]` com uma `media_reference`; a UI exibe a imagem e a API serve os bytes em
+`GET /sessions/{session_id}/media/{storage_key}`. Imagens em formato não permitido ou acima do limite são
+recusadas antes de chegar ao modelo, com mensagem em português.
 
-To redeploy your AgentOS, run the following command:
+Testes que chamam provedores reais (conversa, análise de imagem e pedido de geração):
 
-```sh
-./scripts/railway/redeploy.sh
+```bash
+PEMILL_LIVE_TESTS=1 python -m pytest tests/test_live.py -v
 ```
 
-Recommended: Auto-deploy on merge to `main` using:
+Evals com juiz LLM (resultados em os.agno.com): `python -m evals --tag smoke` ou `--tag release`.
 
-1. Open the Railway dashboard, your project, the agent-os service, **Settings**.
-2. Under **Source**, click **Connect Repo** and pick your repo.
-3. Set the deploy branch to `main` and save.
+## Variáveis de ambiente
 
-Push to `main` triggers a build and rolling deploy. `./scripts/railway/env-sync.sh` is still how you sync env changes.
+Valores padrão documentados em [`example.env`](example.env). Nenhuma chave fica no código.
 
-### Sync environment variables
+| Variável | Obrigatória | Padrão | Descrição |
+|---|---|---|---|
+| `OPENAI_API_KEY` | sim | — | Embeddings e provedor padrão de geração de imagens. |
+| `OPENROUTER_API_KEY` | sim | — | Provedor padrão de chat de todos os agentes. |
+| `OPENROUTER_MODEL` | não | `~openai/gpt-mini-latest` | Modelo OpenRouter padrão (`app.settings.default_model()`). |
+| `CHAT_MODEL_PROVIDER` | não | `openrouter` | Provedor de chat do Assistente Pemill: `openrouter`, `openai`, `google`, `anthropic`. Precisa aceitar imagens. |
+| `CHAT_MODEL_ID` | não | por provedor | Modelo de chat do Assistente Pemill (ver `example.env`). |
+| `ASSISTENTE_PEMILL_MEMORY` | não | `True` | Memória de usuário entre sessões (LearningMachine). |
+| `ASSISTENTE_PEMILL_HISTORY_RUNS` | não | `10` | Interações anteriores incluídas no contexto. |
+| `ASSISTENTE_PEMILL_MAX_TOKENS` | não | `4096` | Teto de tokens de saída. |
+| `IMAGE_PROVIDER` | não | `openai` | `openai` (geração + edição) ou `gemini` (só geração; requer `google-genai`). |
+| `IMAGE_MODEL` | não | `gpt-image-1` / `imagen-4.0-generate-001` | Modelo de imagem do provedor. |
+| `IMAGE_SIZE` / `IMAGE_QUALITY` | não | `1024x1024` / `auto` | Parâmetros de geração. |
+| `IMAGE_API_KEY` | não | — | Chave dedicada para imagens; senão usa `OPENAI_API_KEY` / `GOOGLE_API_KEY`. |
+| `IMAGE_INPUT_MAX_MB` | não | `10` | Tamanho máximo de imagem enviada pelo usuário. |
+| `IMAGE_INPUT_FORMATS` | não | `png,jpeg,webp` | Formatos aceitos na entrada. |
+| `MEDIA_STORAGE` | não | `local` | `local` ou `s3` (requer `boto3`). Onde ficam imagens enviadas e geradas. |
+| `MEDIA_STORAGE_DIR` | não | `storage/media` | Pasta do storage local (compose monta um volume). |
+| `MEDIA_S3_BUCKET` / `MEDIA_S3_PREFIX` / `MEDIA_S3_REGION` / `MEDIA_S3_ENDPOINT_URL` | se `s3` | — | Bucket S3 compatível; credenciais via `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`. |
+| `RUNTIME_ENV` | não | `prd` | `dev` desliga o JWT. O compose local define `dev`; nunca envie para produção. |
+| `JWT_VERIFICATION_KEY` / `JWT_JWKS_FILE` | prd | — | Chave pública gerada em os.agno.com. Obrigatória em produção. |
+| `AGENTOS_URL` | não | `http://127.0.0.1:8000` | URL pública do OS (scheduler e OAuth do MCP). |
+| `MCP_CONNECT_SECRET` / `AGENTOS_MCP_SIGNING_KEY` | não | — | Liga o OAuth 2.1 do `/mcp` para claude.ai e ChatGPT. |
+| `JIRA_*` | não | — | Credenciais do Jira (basic, oauth2 ou oauth1); `JIRA_ENABLE_MUTATIONS` libera mutações guardadas. |
+| `ROCKETCHAT_WEBHOOK_TOKEN` / `ROCKETCHAT_AGENT_ID` / `ROCKETCHAT_BOT_USERNAME` | não | `assistente-pemill` | Webhook de saída do Rocket.Chat em `/rocketchat/webhook`. Opções de agente: `assistente-pemill`, `jira-ticket-responder`, `ti-team`. |
+| `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | não | — | Ambas ligam a interface Slack (Assistente Pemill responde). |
+| `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` / `DB_DRIVER` | não | compose | Conexão Postgres. |
+| `AGNO_DEBUG` / `WAIT_FOR_DB` | não | `False` | Logs verbosos do Agno / entrypoint espera o banco. |
 
-To re-sync environment variables, run the following command:
+## Como adicionar um novo agente
 
-```sh
-./scripts/railway/env-sync.sh
+1. Crie `agents/<slug>.py` seguindo o padrão do [`agents/assistente_pemill.py`](agents/assistente_pemill.py):
+   `INSTRUCTIONS` em pt-BR, `model=chat_model()` (ou `default_model()`), `db=get_postgres_db()`,
+   `add_history_to_context=True`, `markdown=True`. Ferramentas e configurações compartilhadas ficam em `app/`
+   (`app/settings.py` para env/modelos, `app/image_*.py` para imagens, `app/jira_tools.py` para Jira).
+2. Registre o agente em [`app/main.py`](app/main.py) (`AgentOS(agents=[...])`) e, se quiser que apareça no
+   Studio como componente reutilizável, em [`app/registry.py`](app/registry.py).
+3. Adicione descrição e quick prompts em [`app/config.yaml`](app/config.yaml) (a chave é o `id` do agente).
+4. Novas variáveis de ambiente: documente em `example.env`, repasse em `compose.coolify.yaml` e na tabela acima.
+5. Cubra com um teste em `tests/` (wiring, sem modelo) e, se fizer sentido, um `Case` em `evals/cases.py`.
+
+Com o hot-reload do compose, o agente aparece na UI assim que o arquivo é salvo. Em uma sessão de Claude Code
+neste repositório, a skill `/create-agent` faz esses passos de forma guiada.
+
+## Deploy
+
+- **Coolify / Docker Compose:** [`compose.coolify.yaml`](compose.coolify.yaml) sobe API + Postgres com healthchecks,
+  JWT ligado (`RUNTIME_ENV=prd`) e volume `media` para as imagens. Defina as variáveis no painel.
+- **Railway:** scripts em [`scripts/railway/`](scripts/railway/) (`up.sh`, `env-sync.sh`, `redeploy.sh`, `down.sh`);
+  o `up.sh` pede a `JWT_VERIFICATION_KEY` gerada em os.agno.com (**Connect OS → Live → Token-Based Authorization**).
+- **MCP:** `uvx agno connect --url https://<dominio>` registra o OS nos clientes locais; para claude.ai/ChatGPT
+  adicione `https://<dominio>/mcp` como conector e informe o `MCP_CONNECT_SECRET` na tela de consentimento.
+
+Em produção o app recusa iniciar sem `JWT_VERIFICATION_KEY` ou `JWT_JWKS_FILE`. Para desligar a autenticação
+(não recomendado), ajuste `authorization=False` em `app/main.py`.
+
+## Estrutura
+
+```
+agents/        um arquivo por agente (+ ti_team.py)
+app/           main.py (AgentOS), settings.py (env/modelos), registry.py, config.yaml,
+               image_input.py (validação), image_generation.py (ferramentas), media_storage.py,
+               jira_tools.py, hr_resume_tools.py, rocketchat.py
+db/            Postgres/pgvector helpers
+evals/         casos de avaliação (python -m evals)
+tests/         pytest (unitários + live opcionais)
+scripts/       venv, format, validate, requirements, railway
 ```
 
-### Tear down
+## Saiba mais
 
-```sh
-./scripts/railway/down.sh
-```
-
-Deletes the Railway project: the agent-os service, the pgvector database, and its volume, **including all data**. It also comments out a Railway-generated `AGENTOS_URL` in your env file so a future `up.sh` derives it again. Custom domains are preserved.
-
-### Opting out of JWT (not recommended)
-
-Set `authorization=False` in [`app/main.py`](app/main.py) and redeploy. Use this only inside a private VPC behind another auth layer. Without it, anyone who guesses your Railway domain can access your platform.
-
-## Using the platform
-
-This platform is designed so that coding agents can drive the entire **create → improve → evaluate → maintain** lifecycle for you.
-
-### Create
-
-Open your coding agent of choice (Claude Code, Codex, Cursor) and run:
-
-```
-/create-agent
-```
-
-It asks a few questions, generates the agent file in `agents/`, registers it in `app/main.py`, adds its description and quick prompts to `app/config.yaml`, restarts the container, and smoke-tests it live.
-
-### Improve
-
-Improve your agents by running the following skills:
-
-- **`/extend-agent`** — Add a tool, add a capability, refine the instructions, fix a known bug.
-- **`/improve-agent`** — Claude simulates scenarios from the agent's `INSTRUCTIONS` and its real usage recorded in the database, runs them against the live container, judges the responses, and edits until they pass.
-
-### Evaluate
-
-Run the eval suite to check for regressions. The evals live in [`evals/cases.py`](evals/cases.py), and run history shows up at os.agno.com next to your sessions and traces.
-
-The evals run on the host machine, so set up the venv with `./scripts/venv_setup.sh && source .venv/bin/activate`, then:
-
-```sh
-python -m evals --tag smoke      # fast checks of the self-driving surfaces
-python -m evals --tag release    # broader pre-release confidence
-python -m evals --name <case>    # one case while iterating
-python -m evals -v               # stream the full run with rich panels
-```
-
-If a case fails, run **`/eval-and-improve`** — it diagnoses each failure, fixes what's in scope, and loops until green. And when you build an agent of your own, **`/create-evals`** writes its coverage: it mines your real sessions for scenarios and adds cases the scheduled eval run watches from then on.
-
-### Maintain
-
-Because the repo is managed by coding agents, it moves fast. Run `/review-and-improve` before a release or after a refactor: it sweeps for drift between docs, code, and config, auto-fixes mechanical drift like stale paths and missing env vars, and flags anything bigger.
-
-## Connect more frontends (optional)
-
-AgentOS comes with an MCP server at `/mcp` (enabled by setting `mcp_server=True` in [`app/main.py`](app/main.py)), so any MCP client can call your agents, teams, and workflows through tools like `run_agent`, `run_team`, and `run_workflow`.
-
-Register your AgentOS with the MCP clients on your machine:
-
-```sh
-uvx agno connect
-```
-
-It auto-detects Claude Code, Claude Desktop, Codex, and Cursor and registers `http://localhost:8000/mcp`. After a successful connection, open one of these apps and ask:
-
-```text
-can you access my agentos mcp?
-```
-
-**claude.ai and ChatGPT (web).** Hosted AI apps reach your platform over the internet and need an OAuth login. Deploy to production (above), add `https://<domain>/mcp` as a remote connector, and approve the consent page with your connect secret.
-
-### Rocket.Chat
-
-Create an **Outgoing WebHook** in Rocket.Chat and point it at:
-
-```text
-https://<agentos-domain>/rocketchat/webhook
-```
-
-Set the webhook token in `ROCKETCHAT_WEBHOOK_TOKEN`. By default messages go to
-`jira-ticket-responder`; change `ROCKETCHAT_AGENT_ID` to `ti-team` or
-`general-chat` if needed.
-
-## Environment variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `OPENAI_API_KEY` | yes | none | OpenAI key for embeddings. |
-| `OPENROUTER_API_KEY` | yes | none | OpenRouter key for the platform's default chat model. |
-| `OPENROUTER_MODEL` | no | `~openai/gpt-mini-latest` | OpenRouter model id used by `app.settings.default_model()`. |
-| `RUNTIME_ENV` | no | `prd` | `dev` disables JWT. Compose sets this to `dev` for local — never put it in an env file that syncs to Railway, or production deploys unauthenticated. |
-| `JWT_VERIFICATION_KEY` | prd | none | Public key from os.agno.com. Required when `RUNTIME_ENV=prd`, unless `JWT_JWKS_FILE` is set. |
-| `JWT_JWKS_FILE` | prd | none | Path to a JWKS file; alternative to `JWT_VERIFICATION_KEY` for production JWT verification. |
-| `AGENTOS_URL` | no | `http://127.0.0.1:8000` | Scheduler base URL. `scripts/railway/up.sh` auto-sets it to your Railway domain; set by hand only for a custom domain or tunnel. Also the public origin OAuth metadata derives from when `MCP_CONNECT_SECRET` is set. |
-| `MCP_CONNECT_SECRET` | no | none | If set (≥16 chars, e.g. `openssl rand -base64 32`), `/mcp` becomes its own OAuth 2.1 authorization server so claude.ai and ChatGPT (web) can connect; connecting asks for this secret on a consent page. Requires `AGENTOS_URL`. `scripts/railway/up.sh` auto-generates it on deploy. PAT and JWT bearers keep working alongside. |
-| `AGENTOS_MCP_SIGNING_KEY` | no | none | Optional high-entropy signing-key material (≥32 chars) for OAuth tokens. Unset, a strong key is generated and persisted in the database. Rotating it invalidates outstanding tokens. |
-| `ENABLE_DEPLOY_CHECK` | no | `True` | The reference deployment-check cron runs daily by default. Set `False` to disable; the workflow is runnable on demand regardless. |
-| `EVALS_TAG` | no | `smoke` | Eval tag run by the run-evals workflow. |
-| `EVALS_CASE_TIMEOUT_SECONDS` | no | `90` | Default per-case timeout for run-evals runs; applies only to cases that don't set their own `timeout_seconds`. |
-| `EVALS_SUITE_TIMEOUT_SECONDS` | no | `900` | Whole-suite timeout for run-evals runs; per-case timeouts are the granular limit. The default bounds the `smoke` tag's worst case (incl. builder-case teardown). |
-| `PARALLEL_API_KEY` | no | none | Authenticates General Chat's and the Studio registry's web search tools (Parallel SDK when set; keyless MCP fallback). |
-| `JIRA_AUTH_TYPE` | no | inferred | Jira auth mode: `basic`, `oauth2`, or `oauth1`. Inferred from the OAuth variables when omitted; otherwise defaults to `basic`. |
-| `JIRA_SERVER_URL` / `JIRA_USERNAME` / `JIRA_TOKEN` or `JIRA_PASSWORD` | no | none | Basic Jira auth. When set, exposes guarded Jira tools in the Studio registry. Defaults to read-only search/get issue. |
-| `JIRA_OAUTH_CLIENT_ID` / `JIRA_OAUTH_CLIENT_SECRET` / `JIRA_CLOUD_ID` | no | none | Jira Cloud OAuth 2.0 service-account credentials. Set `JIRA_AUTH_TYPE=oauth2`; the app requests short-lived access tokens with `grant_type=client_credentials`. |
-| `JIRA_OAUTH_ACCESS_TOKEN` | no | none | Optional direct Jira Cloud OAuth 2.0 bearer token for temporary/manual tests. Used instead of client credentials when set. |
-| `JIRA_OAUTH_ACCESS_TOKEN_SECRET` / `JIRA_OAUTH_CONSUMER_KEY` / `JIRA_OAUTH_KEY_CERT` or `JIRA_OAUTH_KEY_CERT_FILE` | no | none | Jira OAuth 1.0 credentials. Set `JIRA_AUTH_TYPE=oauth1`; `JIRA_SERVER_URL` is also required. |
-| `JIRA_ENABLE_MUTATIONS` | no | `False` | Set `True` to expose guarded Jira mutations: comment on any issue; edit only comments created by this AI tool; move status, set original estimate, and assign owners only when explicit in the user's request; and never delete Jira content. |
-| `ROCKETCHAT_WEBHOOK_TOKEN` | no | none | Enables the Rocket.Chat outgoing webhook endpoint at `/rocketchat/webhook`. Set this to the token configured in Rocket.Chat. |
-| `ROCKETCHAT_AGENT_ID` | no | `jira-ticket-responder` | Agent or team used for Rocket.Chat messages. Options: `ti-team`, `jira-ticket-responder`, `general-chat`. |
-| `ROCKETCHAT_BOT_USERNAME` | no | none | Optional bot username to strip from messages, for example when Rocket.Chat sends `@bot text`. |
-| `SLACK_BOT_TOKEN` / `SLACK_SIGNING_SECRET` | no | none | Both must be set to enable the optional Slack interface. |
-| `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASS` / `DB_DATABASE` | no | matches compose | Postgres connection. |
-| `DB_DRIVER` | no | `postgresql+psycopg` | SQLAlchemy driver. |
-| `AGNO_DEBUG` | no | `False` | If `True`, Agno emits verbose debug logs. Compose sets this for dev. |
-| `WAIT_FOR_DB` | no | `False` | If `True`, the entrypoint blocks on the DB before starting. Compose sets this. |
-
-## Learn more
-
-- [Agno documentation](https://docs.agno.com?utm_source=github&utm_medium=example-repo&utm_campaign=agentos-railway&utm_content=agentos-railway&utm_term=railway)
-- [AgentOS introduction](https://docs.agno.com/agent-os/introduction?utm_source=github&utm_medium=example-repo&utm_campaign=agentos-railway&utm_content=agentos-railway&utm_term=railway)
-- [Agno on GitHub](https://github.com/agno-agi/agno). Drop a star if this is useful.
+- [Documentação do Agno](https://docs.agno.com) · [AgentOS](https://docs.agno.com/agent-os/introduction)
+- [`AGENTS.md`](AGENTS.md) — guia para agentes de código (Claude Code, Codex) trabalhando neste repositório.
