@@ -88,6 +88,18 @@ PEMILL_LIVE_TESTS=1 python -m pytest tests/test_live.py -v
 
 Evals com juiz LLM (resultados em os.agno.com): `python -m evals --tag smoke` ou `--tag release`.
 
+Verificação ponta a ponta **sem chaves de API** (`tests/e2e_stub/`): um servidor local compatível com a API da
+OpenAI responde pelo modelo de chat e pela geração/edição de imagens, e o script percorre conversa, análise de
+imagem, geração, edição e persistência no Postgres (exige o banco do `docker compose` rodando):
+
+```bash
+python tests/e2e_stub/openai_stub.py 8099 &
+```
+
+```bash
+RUNTIME_ENV=dev OPENAI_API_KEY=sk-stub OPENAI_BASE_URL=http://127.0.0.1:8099/v1 OPENROUTER_API_KEY=sk-stub CHAT_MODEL_PROVIDER=openai ASSISTENTE_PEMILL_MEMORY=false PYTHONPATH=. python tests/e2e_stub/e2e_check.py
+```
+
 ## Variáveis de ambiente
 
 Valores padrão documentados em [`example.env`](example.env). Nenhuma chave fica no código.
