@@ -31,8 +31,9 @@ Compartilhado:
   entrada/saída para lá ao fim do run e a rota `/sessions/{id}/media/{key}` as serve à UI.
 - `app/image_input.py` — `ImageInputGuardrail` (pre_hook): valida formato (magic bytes) e tamanho das imagens
   recebidas (upload, URL, data URL, base64). URLs remotas são baixadas uma vez e viram bytes.
-- `app/image_generation.py` — `ImageGenerationTools` (`generate_image`, `edit_image`) com backends OpenAI
-  (gpt-image/dall-e; gera e edita) e Gemini/Imagen (só gera). Salva no media storage sob
+- `app/image_generation.py` — `ImageGenerationTools` (`generate_image`, `edit_image`) com backends OpenRouter
+  (Image API `POST /images`, padrão; gera e edita via imagem de referência), OpenAI (gpt-image/dall-e; gera e
+  edita) e Gemini/Imagen (só gera). Salva no media storage sob
   `pemill-img-<id>.<ext>`, devolve `Image` com `media_reference` e guarda o último id em
   `run_context.session_state["pemill_last_image_id"]` para edições na mesma sessão.
 - `app/registry.py` — registro do Studio (ferramentas Jira, ReasoningTools em pt-BR, modelos, DB, agentes).

@@ -4,12 +4,12 @@ Image Generation Tools
 
 `ImageGenerationTools` is the toolkit the Assistente Pemill calls to create and refine images.
 
-- `generate_image(prompt)` asks the configured provider (`IMAGE_PROVIDER`: `openai` or
-  `gemini`) for an image, saves it in the shared media storage and returns it as an agno
-  `Image` so AgentOS and the UI can display it.
+- `generate_image(prompt)` asks the configured provider (`IMAGE_PROVIDER`: `openrouter`
+  (default), `openai` or `gemini`) for an image, saves it in the shared media storage and
+  returns it as an agno `Image` so AgentOS and the UI can display it.
 - `edit_image(prompt, image_id=None)` refines an image generated earlier in the same session.
   The last generated image id is kept in the session state, so the model can simply say
-  "edit the last image". Only providers that support edits (OpenAI) expose this ability.
+  "edit the last image". OpenRouter (reference image) and OpenAI support edits; Imagen does not.
 
 Generated files are stored under a predictable key (`pemill-img-<id>.<ext>`) so later turns can
 load them again without an extra index.
@@ -17,8 +17,10 @@ load them again without an extra index.
 
 import base64
 import hashlib
+import re
 from dataclasses import dataclass
 from io import BytesIO
+from math import gcd
 from os import getenv
 from typing import Any, Protocol
 from uuid import uuid4
@@ -38,6 +40,7 @@ from app.settings import ImageSettings, image_settings
 
 STORAGE_PREFIX = "pemill-img-"
 SESSION_LAST_IMAGE_KEY = "pemill_last_image_id"
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 TOOLKIT_INSTRUCTIONS = """\
 Ferramentas de imagem:
@@ -132,6 +135,108 @@ class OpenAIImageBackend:
         return _decode_response(response.data[0])
 
 
+# Aspect ratios accepted by the OpenRouter Image API (providers clamp to their own subset).
+_OPENROUTER_ASPECT_RATIOS = (
+    "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "4:5", "5:4",
+    "1:2", "2:1", "1:4", "4:1", "1:8", "8:1", "9:21", "21:9",
+)  # fmt: skip
+_OPENROUTER_TIER = re.compile(r"^(512|768|1k|1\.5k|2k|4k)$")
+
+
+def openrouter_size_params(size: str | None) -> dict[str, str]:
+    """Translate `IMAGE_SIZE` into OpenRouter Image API fields.
+
+    Tiers (`1K`, `2K`...) go through as `size`; `WxH` becomes the closest supported
+    `aspect_ratio` (pixel sizes are rejected by several providers); `a:b` is passed as is;
+    empty or `auto` lets the provider choose.
+    """
+    value = (size or "").strip().lower()
+    if not value or value == "auto":
+        return {}
+    if _OPENROUTER_TIER.match(value):
+        return {"size": value.upper()}
+    if ":" in value:
+        return {"aspect_ratio": value}
+    match = re.match(r"^(\d+)\s*x\s*(\d+)$", value)
+    if not match:
+        return {}
+    width, height = int(match.group(1)), int(match.group(2))
+    if width <= 0 or height <= 0:
+        return {}
+    divisor = gcd(width, height)
+    exact = f"{width // divisor}:{height // divisor}"
+    if exact in _OPENROUTER_ASPECT_RATIOS:
+        return {"aspect_ratio": exact}
+    target = width / height
+    closest = min(_OPENROUTER_ASPECT_RATIOS, key=lambda r: abs(int(r.split(":")[0]) / int(r.split(":")[1]) - target))
+    return {"aspect_ratio": closest}
+
+
+class OpenRouterImageBackend:
+    """OpenRouter Image API (`POST /images`): one key for every image model on OpenRouter.
+
+    Generation sends the prompt; edits send the stored image as an `input_references` data
+    URL. Works with the models listed at https://openrouter.ai/models?output_modalities=image.
+    """
+
+    supports_edit = True
+
+    def __init__(
+        self,
+        model: str,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        timeout: float = 180.0,
+        transport: httpx.BaseTransport | None = None,
+    ):
+        self.model = model
+        key = api_key or getenv("OPENROUTER_API_KEY")
+        if not key:
+            raise RuntimeError(
+                "OPENROUTER_API_KEY not set (or IMAGE_API_KEY) — required for IMAGE_PROVIDER=openrouter."
+            )
+        self._client = httpx.Client(
+            base_url=(base_url or getenv("OPENROUTER_BASE_URL") or OPENROUTER_BASE_URL).rstrip("/"),
+            headers={"Authorization": f"Bearer {key}", "X-Title": "Pemill AgentOS"},
+            timeout=timeout,
+            transport=transport,
+        )
+
+    def _payload(self, prompt: str, size: str, quality: str | None) -> dict[str, Any]:
+        payload: dict[str, Any] = {"model": self.model, "prompt": prompt, "n": 1}
+        payload.update(openrouter_size_params(size))
+        if quality:
+            payload["quality"] = quality
+        return payload
+
+    def _request(self, payload: dict[str, Any]) -> GeneratedImage:
+        response = self._client.post("/images", json=payload)
+        if response.status_code >= 400:
+            try:
+                detail = (response.json().get("error") or {}).get("message")
+            except ValueError:
+                detail = None
+            raise RuntimeError(f"OpenRouter image API error {response.status_code}: {detail or response.text[:200]}")
+        body = response.json()
+        data = body.get("data") or []
+        first = data[0] if data else {}
+        if not first.get("b64_json"):
+            raise RuntimeError("the provider returned no image data")
+        content = base64.b64decode(first["b64_json"])
+        fmt = sniff_image_format(content)
+        mime = MIME_BY_FORMAT.get(fmt or "", first.get("media_type") or "image/png")
+        return GeneratedImage(content=content, mime_type=mime, revised_prompt=first.get("revised_prompt"))
+
+    def generate(self, prompt: str, *, size: str, quality: str | None) -> GeneratedImage:
+        return self._request(self._payload(prompt, size, quality))
+
+    def edit(self, source: bytes, source_mime: str, prompt: str, *, size: str, quality: str | None) -> GeneratedImage:
+        payload = self._payload(prompt, size, quality)
+        data_url = f"data:{source_mime};base64,{base64.b64encode(source).decode()}"
+        payload["input_references"] = [{"type": "image_url", "image_url": {"url": data_url}}]
+        return self._request(payload)
+
+
 class GeminiImageBackend:
     """Google Imagen through `google-genai`. Generation only."""
 
@@ -165,6 +270,8 @@ class GeminiImageBackend:
 
 
 def build_image_backend(settings: ImageSettings) -> ImageBackend:
+    if settings.provider == "openrouter":
+        return OpenRouterImageBackend(model=settings.model, api_key=settings.api_key)
     if settings.provider == "openai":
         return OpenAIImageBackend(model=settings.model, api_key=settings.api_key)
     if settings.provider == "gemini":

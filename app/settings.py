@@ -34,10 +34,13 @@ CHAT_MODEL_DEFAULTS: dict[str, str] = {
 }
 
 # Image generation model used when IMAGE_MODEL is not set, per provider.
+# openrouter: any model at https://openrouter.ai/models?output_modalities=image (edits via reference image).
 IMAGE_MODEL_DEFAULTS: dict[str, str] = {
+    "openrouter": "google/gemini-2.5-flash-image",
     "openai": "gpt-image-1",
     "gemini": "imagen-4.0-generate-001",
 }
+DEFAULT_IMAGE_PROVIDER = "openrouter"
 
 
 # ---------------------------------------------------------------------------
@@ -141,7 +144,7 @@ class ImageSettings:
 
 
 def image_settings() -> ImageSettings:
-    provider = (getenv("IMAGE_PROVIDER") or "openai").strip().lower()
+    provider = (getenv("IMAGE_PROVIDER") or DEFAULT_IMAGE_PROVIDER).strip().lower()
     if provider not in IMAGE_MODEL_DEFAULTS:
         raise ValueError(
             f"IMAGE_PROVIDER='{provider}' is not supported. Use one of: {', '.join(IMAGE_MODEL_DEFAULTS)}."

@@ -1,4 +1,4 @@
-"""Minimal OpenAI-compatible stub: chat completions with tool calls + image generation/edit.
+"""Minimal OpenAI/OpenRouter-compatible stub: chat completions with tool calls + image generation/edit.
 
 Lets the full agno pipeline (vision input, tool calling, media storage, session state) run
 end to end without real API keys. Behaviour is keyed on the user's text.
@@ -105,6 +105,35 @@ async def chat(request: Request):
     return completion(
         "Olá! Sou o Assistente Pemill, o assistente virtual da Pemill. Posso ajudar com dúvidas, textos e imagens."
     )
+
+
+@app.post("/v1/images")
+async def openrouter_images(request: Request):
+    """OpenRouter Image API: generation, or an edit when `input_references` is present."""
+    body = await request.json()
+    references = body.get("input_references") or []
+    if references:
+        url = references[0].get("image_url", {}).get("url", "")
+        source = base64.b64decode(url.split(",", 1)[1]) if url.startswith("data:") else b""
+        SEEN.append(
+            {
+                "images.edit": body.get("model"),
+                "prompt": body.get("prompt"),
+                "source_is_png": source.startswith(b"\x89PNG"),
+                "source_len": len(source),
+            }
+        )
+        return {
+            "created": int(time.time()),
+            "data": [{"b64_json": base64.b64encode(png((255, 255, 0))).decode(), "media_type": "image/png"}],
+        }
+    SEEN.append(
+        {"images.generate": body.get("model"), "prompt": body.get("prompt"), "aspect_ratio": body.get("aspect_ratio")}
+    )
+    return {
+        "created": int(time.time()),
+        "data": [{"b64_json": base64.b64encode(png((0, 0, 255))).decode(), "media_type": "image/png"}],
+    }
 
 
 @app.post("/v1/images/generations")
