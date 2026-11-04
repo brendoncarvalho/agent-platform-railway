@@ -63,7 +63,6 @@ Read every file in scope. Build a mental model of:
 - **Manifest** — what's in [`app/config.yaml`](../../../app/config.yaml) under `manifest` (description + quick prompts per component)?
 - **Eval cases** — what's in [`evals/cases.py`](../../../evals/cases.py)?
 - **Registered workflows** — what's imported into [`app/main.py`](../../../app/main.py) and passed to `AgentOS(workflows=[...])`? Workflow files on disk in [`workflows/`](../../../workflows/)?
-- **Schedules** — what `register_schedules()` ([`app/schedules.py`](../../../app/schedules.py)) registers: the env gate where one exists (`ENABLE_DEPLOY_CHECK`), and run-evals' ships-disabled posture (its enabled bit is user-owned via the AgentOS UI after first creation). Every schedule `endpoint` should map to a real workflow `id`.
 - **Scripts** — for each file in [`scripts/`](../../../scripts/), what does it actually do? (Headers and the first few lines are usually enough.)
 
 Don't write anything yet — read first, fix once.
@@ -83,7 +82,6 @@ The bulk of the work. Diff each pair below; auto-fix per the rules at the top.
 | Architecture diagrams match registered agents + workflows | `README.md`, `AGENTS.md` Architecture sections | New agent or workflow missing from the tree |
 | Eval cases reference real agents + tools | `evals/cases.py` ↔ `agents/` | Slug renamed or tool removed |
 | Every workflow file is registered | [`workflows/`](../../../workflows/) ↔ `app/main.py` `workflows=[...]` | New workflow not imported/registered |
-| Every schedule hits a real workflow | `app/schedules.py` `endpoint` ↔ workflow `id`s | Endpoint points at a renamed/removed workflow |
 | `Key Files` table in `AGENTS.md` matches reality | `AGENTS.md` ↔ filesystem | Renamed file, deleted file, new file not listed |
 | Skill frontmatter + links resolve | `.agents/skills/*/SKILL.md` ↔ folder name + `../../../` link targets | name≠folder, broken `../../../` path, dead cross-skill link |
 | `.claude/skills` symlink resolves | `.claude/skills` → `../.agents/skills` | Symlink missing or dangling |
@@ -101,7 +99,7 @@ curl -s http://localhost:8000/agents | jq -r '.[].id' | sort
 
 If the list doesn't match the slugs in `agents=[...]`, flag it — Step 4 will be testing the wrong code. Common causes: the container is bound to a different repo path, or `docker compose restart` is needed. Stop and surface to the user.
 
-For each agent registered in `app/main.py`, hit it with one of its `quick_prompts` — **except `agent-builder`**: its quick prompts are all "Build …" requests, and its create/edit/publish Studio tools execute immediately against the DB (only deletes pause for confirmation), so a quick-prompt smoke would create a real component and leave it behind. Probe it with a plan-only message instead, e.g. `message=Before creating anything, explain how you would build an agent that tracks AI news daily.` If a create fires anyway, hard-delete the new component (`snapshot_builder_state` / `delete_new_builder_state` in [`evals/cases.py`](../../../evals/cases.py) are the helpers — they sweep new learning rows too, since the builder carries the shared per-user profile/memory stores).
+For each agent registered in `app/main.py`, hit it with one of its `quick_prompts`. Agents with learning stores (`assistente-pemill`) write profile/memory rows during a probe — bracket the smoke with `snapshot_learning_state` / `delete_new_learning_state` from [`evals/cases.py`](../../../evals/cases.py) if the DB is shared with real users.
 
 ```bash
 curl -sS -X POST http://localhost:8000/agents/<slug>/runs \
@@ -128,7 +126,7 @@ Then smoke the MCP interface — the platform's second surface (`mcp_server=True
 ./scripts/mcp_check.sh
 ```
 
-Pass = `MCP OK — <n> tools` plus a non-empty agent response. It runs inside the container and calls `platform-manager` (read-only), so it is safe to run repeatedly.
+Pass = `MCP OK — <n> tools` plus a non-empty agent response. It runs inside the container and calls `assistente-pemill` (a plain conversational turn), so it is safe to run repeatedly.
 
 Quality issues (response is plausible but wrong, missing citations, wrong tool fired) are out of scope — note them and recommend [`improve-agent`](../improve-agent/SKILL.md) (autonomous) or [`extend-agent`](../extend-agent/SKILL.md) (user-driven) depending on whether the user has a specific fix in mind.
 

@@ -494,11 +494,7 @@ def _format_jira_ai_comment(comment_pt_br: str, issue_key: str) -> str:
 
 
 def _is_jira_ai_comment(body: str) -> bool:
-    return (
-        JIRA_AI_COMMENT_MARKER in body
-        or JIRA_AI_COMMENT_FOOTER in body
-        or JIRA_LEGACY_AI_COMMENT_FOOTER in body
-    )
+    return JIRA_AI_COMMENT_MARKER in body or JIRA_AI_COMMENT_FOOTER in body or JIRA_LEGACY_AI_COMMENT_FOOTER in body
 
 
 def _explicitly_requested(value: str, user_request_quote: str) -> bool:
@@ -850,10 +846,7 @@ def transition_jira_issue(issue_key: str, target_status: str, user_request_quote
             )
             if matching_transition is None:
                 available = ", ".join(
-                    (
-                        f"{transition.get('name')} -> "
-                        f"{(transition.get('to') or {}).get('name')}"
-                    )
+                    (f"{transition.get('name')} -> {(transition.get('to') or {}).get('name')}")
                     for transition in transitions
                 )
                 return (
@@ -885,10 +878,7 @@ def transition_jira_issue(issue_key: str, target_status: str, user_request_quote
         )
         if matching_transition is None:
             available = ", ".join(
-                (
-                    f"{transition.get('name')} -> "
-                    f"{(transition.get('to') or {}).get('name')}"
-                )
+                (f"{transition.get('name')} -> {(transition.get('to') or {}).get('name')}")
                 for transition in transitions
             )
             return (

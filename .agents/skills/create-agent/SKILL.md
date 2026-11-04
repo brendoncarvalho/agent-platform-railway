@@ -53,7 +53,7 @@ Build what makes *their* week easier. Resist the demo classics (news digest, gen
 
 | Decision | How you decide it |
 |---|---|
-| **Pattern** | **Direct tools** (the required structure in Step 3; [`agents/general_chat.py`](../../../agents/general_chat.py) shows it live — ignore its `learning=` extras) when the agent uses ≤2 toolkits — this is the common case. **Context provider** (mirror the `codebase_context` wiring in [`agents/platform_manager.py`](../../../agents/platform_manager.py)) when it queries one information source through a single `query_<thing>` tool, or you're hiding a sub-agent. Pick one and mention it in a clause; never make the user choose. |
+| **Pattern** | **Direct tools** (the required structure in Step 3; [`agents/assistente_pemill.py`](../../../agents/assistente_pemill.py) shows it live — ignore its image tooling and `learning=` extras) when the agent uses ≤2 toolkits — this is the common case. **Context provider** (agno's `WorkspaceContextProvider`, see the agno docs) when it queries one information source through a single `query_<thing>` tool, or you're hiding a sub-agent. Pick one and mention it in a clause; never make the user choose. |
 | **Slug** | Derive it from the purpose (`pr-reviewer`, `linear-triager`). Kebab-case. State it, don't ask for sign-off. |
 | **Model** | `default_model()` — already `gpt-5.6-sol`. Override only if the user asks. |
 | **Toolkits** | Choose from what the discovery answers imply, grounded in agno docs (Step 2). Prefer keyless toolkits (HackerNews, ArXiv, Wikipedia, DuckDuckGo via `WebSearchTools`) when they'd serve just as well — a keyless agent works on the first try. |
@@ -90,9 +90,8 @@ Don't guess any of the four. Skip this step entirely if the agent is chat-only w
 
 Create `agents/<slug>.py` (replacing `-` with `_` for the filename: `agents/linear_agent.py`). Follow the closest reference pattern:
 
-- **Direct tools** → follow the required structure below ([`agents/general_chat.py`](../../../agents/general_chat.py) is the live example; skip its `learning=` wiring unless the new agent needs durable state across sessions).
-- **Context provider** → mirror the `codebase_context` part of [`agents/platform_manager.py`](../../../agents/platform_manager.py): build the `WorkspaceContextProvider`, unpack `*provider.get_tools()` into `tools=`, and append `provider.instructions()` to the agent's instructions. Skip its extra runtime tools unless the new agent also needs direct tools.
-- **Studio builder** → mirror [`agents/agent_builder.py`](../../../agents/agent_builder.py) when the agent should create or refine AgentOS components through StudioTools.
+- **Direct tools** → follow the required structure below ([`agents/assistente_pemill.py`](../../../agents/assistente_pemill.py) is the live example; skip its image tooling and `learning=` wiring unless the new agent needs them).
+- **Context provider** → build an agno `WorkspaceContextProvider` (see the agno docs), unpack `*provider.get_tools()` into `tools=`, and append `provider.instructions()` to the agent's instructions.
 
 Required structure:
 
@@ -141,7 +140,7 @@ from agents.<slug_underscore> import <slug_underscore>
 
 agent_os = AgentOS(
     ...
-    agents=[agent_builder, platform_manager, ..., <slug_underscore>],
+    agents=[assistente_pemill, ..., <slug_underscore>],
     ...
 )
 ```
@@ -231,7 +230,7 @@ When the smoke test passes:
 2. **Hand them the loop.** The agent they just built is a first draft, and both ways to sharpen it are already in this session:
    - [`/extend-agent`](../extend-agent/SKILL.md) — they drive: add a tool or source, teach it a new trick, fix something it got wrong.
    - [`/improve-agent`](../improve-agent/SKILL.md) — you drive: probe it against its own `INSTRUCTIONS`, judge, edit, re-probe until it's reliable. No input needed from them.
-   - [`/create-evals`](../create-evals/SKILL.md) — pin today's behavior down as tests. The smoke test that just passed is already a first case in the making; offer to persist it so the eval suite (and the scheduled run-evals check) watches their agent from day one. (Studio-builder agents: the smoke probe was deliberately read-only — create-evals is where the real build loop gets tested safely, because its cases carry snapshot hooks that delete whatever a run creates.)
+   - [`/create-evals`](../create-evals/SKILL.md) — pin today's behavior down as tests. The smoke test that just passed is already a first case in the making; offer to persist it so the eval suite watches their agent from day one. (Studio-builder agents: the smoke probe was deliberately read-only — create-evals is where the real build loop gets tested safely, because its cases carry snapshot hooks that delete whatever a run creates.)
 
    Suggest whichever fits what the smoke test actually showed — if a tool didn't fire or an answer was thin, name that and point at the loop that fixes it.
 

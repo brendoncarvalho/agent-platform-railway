@@ -7,7 +7,7 @@ description: Author eval coverage for an agent in this AgentOS — map what the 
 
 > _**Coding-agent workflow** — a `/slash-command` your coding agent (Claude Code, Codex, others) runs while developing this repo. Invoke it by name (e.g. `/create-evals`) or describe the task and it triggers automatically._
 
-You're giving an agent eval coverage: turning what it promises into `Case` entries in [`evals/cases.py`](../../../evals/cases.py) that catch regressions from now on. The suite only watches what someone wrote down — the template ships cases for its reference agents, but a user's own agents are invisible to it until this skill runs. Once a case is tagged `smoke`, the run-evals schedule covers it on every scheduled run, and the eval history lands in Postgres where the AgentOS UI and Platform Manager can see it. That's the payoff: an agent built this morning is being watched by tonight.
+You're giving an agent eval coverage: turning what it promises into `Case` entries in [`evals/cases.py`](../../../evals/cases.py) that catch regressions from now on. The suite only watches what someone wrote down — the repo ships cases for the Pemill agents, but a new agent is invisible to it until this skill runs. Once a case is tagged `smoke`, `python -m evals --tag smoke` covers it on every scheduled run, and the eval history lands in Postgres where the AgentOS UI and Platform Manager can see it. That's the payoff: an agent built this morning is being watched by tonight.
 
 This is the **authoring** skill. If the suite is failing and needs diagnosis, that's [`eval-and-improve`](../eval-and-improve/SKILL.md); if the agent itself needs hardening against its instructions, that's [`improve-agent`](../improve-agent/SKILL.md). Preconditions match eval-and-improve's Step 0: Postgres on 5432, venv active, `.env` populated.
 
@@ -53,16 +53,13 @@ Case(
     timeout_seconds=90,
     criteria="<what a correct answer contains — specific, falsifiable>",
     expected_tool_calls=("<tool>",),
-    # Studio-builder agent (Step 2)? These two lines are mandatory — both live in this file:
-    # setup=snapshot_builder_state,
-    # teardown=cleanup_new_builder_state,
-    # Not a builder, but carries learning stores (`learning=` — platform-manager, general-chat)?
+    # Carries learning stores (`learning=` — assistente-pemill)? These two lines are mandatory — both live in this file:
     # setup=snapshot_learning_state,
     # teardown=cleanup_new_learning_state,
 )
 ```
 
-The judge and the reliability check answer different questions — **pair them whenever the capability involves a tool**. A rubric alone is gameable: an agent that answers from stale memory without searching can read *correct*; `expected_tool_calls` proves the work happened, the rubric proves the answer used it. (If a tool's name depends on env — keyed SDK vs keyless fallback — mirror the agent's own conditional, like the `PARALLEL_API_KEY` switch in `agents/general_chat.py`.) Write criteria falsifiable ("cites at least one real URL from the fetched page"), not vibes ("gives a good answer") — and ask of every rubric: **could a stock model with no tools and none of this agent's instructions pass it?** If yes, the case tests nothing; tie the criteria to what only fresh tool output or this agent's `INSTRUCTIONS` can supply (for chat-only agents: scope, refusals, format, the rules they were given). Tags by cost and determinism: `smoke` for fast, deterministic checks — these ride the run-evals schedule; `release` for broader pre-release confidence; `live` when correctness depends on today's web. If the right answer can change with the outside world, the case is `live` — and live never shares a tag with smoke.
+The judge and the reliability check answer different questions — **pair them whenever the capability involves a tool**. A rubric alone is gameable: an agent that answers from stale memory without searching can read *correct*; `expected_tool_calls` proves the work happened, the rubric proves the answer used it. (If a tool's name depends on env — e.g. `IMAGE_PROVIDER` picking a backend — mirror the agent's own conditional.) Write criteria falsifiable ("cites at least one real URL from the fetched page"), not vibes ("gives a good answer") — and ask of every rubric: **could a stock model with no tools and none of this agent's instructions pass it?** If yes, the case tests nothing; tie the criteria to what only fresh tool output or this agent's `INSTRUCTIONS` can supply (for chat-only agents: scope, refusals, format, the rules they were given). Tags by cost and determinism: `smoke` for fast, deterministic checks — run them before every release; `release` for broader pre-release confidence; `live` when correctness depends on today's web. If the right answer can change with the outside world, the case is `live` — and live never shares a tag with smoke.
 
 Two containment rules: studio-builder cases get the snapshot hooks, every time — that's also why build prompts that are unsafe as ad-hoc smoke tests are safe here. And any other tool that mutates external state (messages, files, third-party APIs) needs its own containment — a scoped test target, a teardown, or don't write the case.
 
@@ -83,4 +80,4 @@ Then loop to Step 4 for the next capability, or finish.
 
 ## 7. Hand over
 
-Close with what changed and the loop the user now owns: the new cases by name and tag, `git diff evals/cases.py`, a suggested commit message (`eval(<agent>): <what's covered now>`). Then the watch: `smoke`-tagged cases run on the run-evals schedule — enable it from the AgentOS UI if they haven't — results land in eval history at os.agno.com, and when a scheduled run goes red, [`/eval-and-improve`](../eval-and-improve/SKILL.md) picks it up from there.
+Close with what changed and the loop the user now owns: the new cases by name and tag, `git diff evals/cases.py`, a suggested commit message (`eval(<agent>): <what's covered now>`). Then the watch: run `python -m evals --tag smoke` before releases — results land in eval history at os.agno.com, and when a run goes red, [`/eval-and-improve`](../eval-and-improve/SKILL.md) picks it up from there.
