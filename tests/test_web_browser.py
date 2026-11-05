@@ -116,8 +116,11 @@ def test_open_click_back_and_read(tools, site):
     assert "Renderizado por JavaScript" in page  # JavaScript ran
     assert "[1] link: Produtos" in page
     assert "campo de senha (bloqueado)" in page
+    # A page with a password field tells the model to hand the browser over to the user.
+    assert "browser_ask_user" in page and "Navegador ao vivo" in page
 
-    assert "Moinho pendular MP-30" in tools.browser_click(1, run_context=ctx("a"))
+    products = tools.browser_click(1, run_context=ctx("a"))
+    assert "Moinho pendular MP-30" in products and "browser_ask_user" not in products
     assert "Página: Loja Teste" in tools.browser_back(run_context=ctx("a"))
     assert "Bem-vindo" in tools.browser_read(run_context=ctx("a"))
 
