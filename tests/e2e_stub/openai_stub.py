@@ -91,14 +91,24 @@ async def chat(request: Request):
     last_user: dict = next((m for m in reversed(messages) if m.get("role") == "user"), {})
     text = _text_of(last_user).lower()
 
-    tool_after_user = [m for m in messages[-3:] if m.get("role") == "tool"]
+    # A tool result is the last message, or is followed only by the media message agno appends.
+    tool_after_user = [m for m in messages[-2:] if m.get("role") == "tool"]
     if tool_after_user:
         return completion(f"Pronto! {_text_of(tool_after_user[-1])[:80]} Quer algum ajuste?")
     if _has_image(last_user):
         return completion("A imagem mostra um quadrado vermelho sólido, sem outros elementos visíveis.")
-    if "deixe" in text or "troque" in text:
+    wants_edit = "deixe" in text or "troque" in text
+    wants_image = "gere" in text or "crie" in text
+    # A team leader has the delegation tool but no image tools: it hands the request to the member.
+    if (wants_edit or wants_image) and "delegate_task_to_member" in tools and "generate_image" not in tools:
+        return completion(
+            tool_calls=tool_call(
+                "delegate_task_to_member", {"member_id": "assistente-pemill", "task": _text_of(last_user)}
+            )
+        )
+    if wants_edit:
         return completion(tool_calls=tool_call("edit_image", {"prompt": _text_of(last_user)}))
-    if "gere" in text or "crie" in text:
+    if wants_image:
         return completion(
             tool_calls=tool_call("generate_image", {"prompt": "ícone de caminhão azul, fundo branco, estilo flat"})
         )

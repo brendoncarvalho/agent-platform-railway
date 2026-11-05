@@ -67,6 +67,8 @@ Qualidade da resposta:
 jira_ticket_responder = Agent(
     id="jira-ticket-responder",
     name="Atendimento Jira",
+    # Read by team leaders (e.g. Time TI) to decide what to delegate here.
+    role="Especialista em chamados Jira: consulta, resume, comenta e altera issues.",
     model=default_model(),
     db=get_postgres_db(),
     tools=get_jira_tools(),
