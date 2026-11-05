@@ -114,8 +114,11 @@ def test_image_settings_defaults_and_overrides(monkeypatch):
     monkeypatch.delenv("IMAGE_PROVIDER", raising=False)
     monkeypatch.delenv("IMAGE_MODEL", raising=False)
     settings = image_settings()
-    assert settings.provider == "openai" and settings.model == "gpt-image-1"
+    assert settings.provider == "openrouter" and settings.model == "google/gemini-2.5-flash-image"
     assert settings.size == "1024x1024" and settings.quality is None
+
+    monkeypatch.setenv("IMAGE_PROVIDER", "openai")
+    assert image_settings().model == "gpt-image-1"
 
     monkeypatch.setenv("IMAGE_PROVIDER", "gemini")
     monkeypatch.setenv("IMAGE_QUALITY", "high")

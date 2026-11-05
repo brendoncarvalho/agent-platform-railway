@@ -89,7 +89,7 @@ PEMILL_LIVE_TESTS=1 python -m pytest tests/test_live.py -v
 Evals com juiz LLM (resultados em os.agno.com): `python -m evals --tag smoke` ou `--tag release`.
 
 Verificação ponta a ponta **sem chaves de API** (`tests/e2e_stub/`): um servidor local compatível com a API da
-OpenAI responde pelo modelo de chat e pela geração/edição de imagens, e o script percorre conversa, análise de
+OpenAI responde pelo modelo de chat e pela Image API do OpenRouter (geração/edição), e o script percorre conversa, análise de
 imagem, geração, edição e persistência no Postgres (exige o banco do `docker compose` rodando):
 
 ```bash
@@ -97,7 +97,7 @@ python tests/e2e_stub/openai_stub.py 8099 &
 ```
 
 ```bash
-RUNTIME_ENV=dev OPENAI_API_KEY=sk-stub OPENAI_BASE_URL=http://127.0.0.1:8099/v1 OPENROUTER_API_KEY=sk-stub CHAT_MODEL_PROVIDER=openai ASSISTENTE_PEMILL_MEMORY=false PYTHONPATH=. python tests/e2e_stub/e2e_check.py
+RUNTIME_ENV=dev OPENAI_API_KEY=sk-stub OPENAI_BASE_URL=http://127.0.0.1:8099/v1 OPENROUTER_API_KEY=sk-stub OPENROUTER_BASE_URL=http://127.0.0.1:8099/v1 CHAT_MODEL_PROVIDER=openai ASSISTENTE_PEMILL_MEMORY=false PYTHONPATH=. python tests/e2e_stub/e2e_check.py
 ```
 
 ## Variáveis de ambiente
@@ -106,18 +106,18 @@ Valores padrão documentados em [`example.env`](example.env). Nenhuma chave fica
 
 | Variável | Obrigatória | Padrão | Descrição |
 |---|---|---|---|
-| `OPENAI_API_KEY` | sim | — | Embeddings e provedor padrão de geração de imagens. |
-| `OPENROUTER_API_KEY` | sim | — | Provedor padrão de chat de todos os agentes. |
+| `OPENROUTER_API_KEY` | sim | — | Provedor padrão de chat de todos os agentes e de geração de imagens. |
+| `OPENAI_API_KEY` | sim | — | Embeddings (bases de conhecimento) e imagens quando `IMAGE_PROVIDER=openai`. |
 | `OPENROUTER_MODEL` | não | `~openai/gpt-mini-latest` | Modelo OpenRouter padrão (`app.settings.default_model()`). |
 | `CHAT_MODEL_PROVIDER` | não | `openrouter` | Provedor de chat do Assistente Pemill: `openrouter`, `openai`, `google`, `anthropic`. Precisa aceitar imagens. |
 | `CHAT_MODEL_ID` | não | por provedor | Modelo de chat do Assistente Pemill (ver `example.env`). |
 | `ASSISTENTE_PEMILL_MEMORY` | não | `True` | Memória de usuário entre sessões (LearningMachine). |
 | `ASSISTENTE_PEMILL_HISTORY_RUNS` | não | `10` | Interações anteriores incluídas no contexto. |
 | `ASSISTENTE_PEMILL_MAX_TOKENS` | não | `4096` | Teto de tokens de saída. |
-| `IMAGE_PROVIDER` | não | `openai` | `openai` (geração + edição) ou `gemini` (só geração; requer `google-genai`). |
-| `IMAGE_MODEL` | não | `gpt-image-1` / `imagen-4.0-generate-001` | Modelo de imagem do provedor. |
-| `IMAGE_SIZE` / `IMAGE_QUALITY` | não | `1024x1024` / `auto` | Parâmetros de geração. |
-| `IMAGE_API_KEY` | não | — | Chave dedicada para imagens; senão usa `OPENAI_API_KEY` / `GOOGLE_API_KEY`. |
+| `IMAGE_PROVIDER` | não | `openrouter` | `openrouter` (geração + edição, qualquer modelo de imagem do OpenRouter), `openai` (geração + edição; gpt-image exige organização verificada) ou `gemini` (só geração; requer `google-genai`). |
+| `IMAGE_MODEL` | não | `google/gemini-2.5-flash-image` / `gpt-image-1` / `imagen-4.0-generate-001` | Modelo de imagem do provedor. |
+| `IMAGE_SIZE` / `IMAGE_QUALITY` | não | `1024x1024` / `auto` | Parâmetros de geração. No OpenRouter `WxH` vira `aspect_ratio`; aceita também tiers (`1K`, `2K`) ou `16:9`. |
+| `IMAGE_API_KEY` | não | — | Chave dedicada para imagens; senão usa `OPENROUTER_API_KEY` / `OPENAI_API_KEY` / `GOOGLE_API_KEY`. |
 | `IMAGE_INPUT_MAX_MB` | não | `10` | Tamanho máximo de imagem enviada pelo usuário. |
 | `IMAGE_INPUT_FORMATS` | não | `png,jpeg,webp` | Formatos aceitos na entrada. |
 | `MEDIA_STORAGE` | não | `local` | `local` ou `s3` (requer `boto3`). Onde ficam imagens enviadas e geradas. |
