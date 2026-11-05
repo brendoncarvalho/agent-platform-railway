@@ -9,7 +9,7 @@ sessões, memória de usuário e conhecimento.
 
 | Agente | id | O que faz |
 |---|---|---|
-| **Assistente Pemill** | `assistente-pemill` | Conversa geral em pt-BR, analisa imagens enviadas (PNG/JPEG/WEBP) e gera/edita imagens sob demanda. Histórico por sessão e memória de usuário no Postgres. |
+| **Assistente Pemill** | `assistente-pemill` | Conversa geral em pt-BR, analisa imagens enviadas (PNG/JPEG/WEBP), gera/edita imagens sob demanda e pesquisa na web. Histórico por sessão e memória de usuário no Postgres. |
 | Revisor de textos | `crm-note-autofix` | Revisa registros comerciais de ligações e visitas, mantendo o sentido. |
 | Atendimento Jira | `jira-ticket-responder` | Lê e comenta chamados Jira com ferramentas guardadas (`JIRA_*`). |
 | Analista de Currículos | `hr-resume-analyst` | Apoio à triagem de currículos (PDF/DOCX/texto) para o RH. |
@@ -119,6 +119,9 @@ Valores padrão documentados em [`example.env`](example.env). Nenhuma chave fica
 | `TI_TEAM_MEMORY` | não | `True` | Memória de usuário entre sessões no Time TI (mesmo armazenamento do assistente). |
 | `ASSISTENTE_PEMILL_HISTORY_RUNS` | não | `10` | Interações anteriores incluídas no contexto. |
 | `ASSISTENTE_PEMILL_MAX_TOKENS` | não | `4096` | Teto de tokens de saída. |
+| `WEB_SEARCH` | não | `True` | Liga a pesquisa na web e de notícias no Assistente Pemill (e, por ele, no Time TI) e a oferece aos agentes criados no portal. Sem chave de API. |
+| `WEB_SEARCH_BACKEND` | não | `google` | Buscador: `google`, `duckduckgo`, `bing`, `brave`, `yahoo` ou `auto`. Os resultados são raspados (biblioteca `ddgs`); se o buscador falhar, a busca tenta uma vez em `auto`. |
+| `WEB_SEARCH_REGION` / `WEB_SEARCH_MAX_RESULTS` / `WEB_SEARCH_TIMEOUT` | não | `br-pt` / `5` / `15` | Região-idioma dos resultados, teto de resultados por busca e tempo de espera em segundos. |
 | `IMAGE_PROVIDER` | não | `openrouter` | `openrouter` (geração + edição, qualquer modelo de imagem do OpenRouter), `openai` (geração + edição; gpt-image exige organização verificada) ou `gemini` (só geração; requer `google-genai`). |
 | `IMAGE_MODEL` | não | `google/gemini-2.5-flash-image` / `gpt-image-1` / `imagen-4.0-generate-001` | Modelo de imagem do provedor. |
 | `IMAGE_SIZE` / `IMAGE_QUALITY` | não | `1024x1024` / `auto` | Parâmetros de geração. No OpenRouter `WxH` vira `aspect_ratio`; aceita também tiers (`1K`, `2K`) ou `16:9`. |

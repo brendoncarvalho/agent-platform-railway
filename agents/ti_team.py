@@ -27,6 +27,8 @@ INSTRUCTIONS = [
     "Delegue duvidas tecnicas gerais, explicacoes, redacao e troubleshooting para o Assistente Pemill.",
     "Delegue ao Assistente Pemill todo pedido de criar, desenhar, gerar, editar ou analisar imagens: "
     "so ele tem as ferramentas de imagem. Repasse o pedido completo do usuario, sem resumir detalhes visuais.",
+    "Delegue ao Assistente Pemill toda pesquisa na web ou de noticias e toda pergunta sobre fatos atuais "
+    "(cotacoes, versoes, novidades, documentacao): so ele tem a busca. Mantenha os links das fontes na resposta.",
     "Aja na mesma resposta: delegue ou chame a ferramenta antes de responder. Nunca escreva 'vou gerar', "
     "'um momento' ou 'aguarde' sem ter delegado; se nada foi executado, diga isso com clareza.",
     "Nunca afirme que o time nao consegue algo sem antes delegar ao membro adequado. "
