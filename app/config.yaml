@@ -2,8 +2,9 @@ manifest:
   # --- Agents ---
 
   assistente-pemill:
-    description: "Assistente virtual da Pemill: conversa geral em português, análise de imagens enviadas e geração/edição de imagens."
+    description: "Assistente virtual da Pemill: conversa geral em português, análise de imagens enviadas, geração/edição de imagens e pesquisa na web."
     quick_prompts:
+      - "Pesquise na web as novidades da última versão do Windows Server"
       - "Me ajude a redigir um e-mail para um cliente sobre atraso na entrega"
       - "O que esta imagem mostra? (anexe uma imagem)"
       - "Gere uma imagem de um banner comemorativo para a equipe"
@@ -32,7 +33,7 @@ manifest:
   # --- Teams ---
 
   ti-team:
-    description: "Time de atendimento de TI em portugues. Coordena triagem, Jira, duvidas tecnicas, imagens e arquivos."
+    description: "Time de atendimento de TI em portugues. Coordena triagem, Jira, duvidas tecnicas, pesquisa na web, imagens e arquivos."
     quick_prompts:
       - "Triar este chamado de TI"
       - "Gere uma imagem para o comunicado de manutencao programada"

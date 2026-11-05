@@ -60,7 +60,9 @@ charset-normalizer==3.5.1
     #   reportlab
     #   requests
 click==8.4.2
-    # via uvicorn
+    # via
+    #   ddgs
+    #   uvicorn
 colorama==0.4.6 ; sys_platform == 'win32'
     # via
     #   click
@@ -75,6 +77,8 @@ cryptography==49.0.0
     #   pyjwt
 cyclopts==4.20.0
     # via fastmcp-slim
+ddgs==9.16.1
+    # via agentos (pyproject.toml)
 defusedxml==0.7.1
     # via jira
 distro==1.9.0
@@ -157,7 +161,9 @@ jsonschema-path==0.5.0
 jsonschema-specifications==2025.9.1
     # via jsonschema
 lxml==6.1.1
-    # via python-docx
+    # via
+    #   ddgs
+    #   python-docx
 markdown-it-py==4.2.0
     # via rich
 mcp==2.3.0
@@ -222,6 +228,8 @@ pillow==12.3.0
     # via reportlab
 platformdirs==4.10.0
     # via fastmcp-slim
+primp==2.0.1
+    # via ddgs
 prompt-toolkit==3.0.53
     # via questionary
 propcache==0.5.2
@@ -349,13 +357,8 @@ typer==0.26.8
 typing-extensions==4.16.0
     # via
     #   agno
-    #   aiohttp
-    #   aiosignal
-    #   anyio
-    #   exceptiongroup
     #   fastapi
     #   fastmcp-slim
-    #   httpx2
     #   jira
     #   mcp
     #   mcp-types
@@ -364,14 +367,11 @@ typing-extensions==4.16.0
     #   opentelemetry-api
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
-    #   psycopg
     #   py-key-value-aio
     #   pydantic
     #   pydantic-core
     #   python-docx
-    #   referencing
     #   sqlalchemy
-    #   starlette
     #   typing-inspection
 typing-inspection==0.4.2
     # via

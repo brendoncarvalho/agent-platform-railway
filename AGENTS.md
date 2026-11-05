@@ -49,6 +49,7 @@ Compartilhado:
 | `app/main.py` | Entrypoint do AgentOS: Slack condicional, Rocket.Chat condicional, OAuth MCP, media storage, registro dos agentes. |
 | `app/settings.py` | Env helpers, fábricas de modelo, configurações de imagem e storage. |
 | `app/image_input.py` / `app/image_generation.py` / `app/media_storage.py` | Pipeline de imagens do Assistente Pemill. |
+| `app/web_search.py` | Pesquisa na web e de notícias (`WebSearchTools` do agno sobre `ddgs`, sem chave): teto de resultados, segunda tentativa em `auto` e falha devolvida como texto. |
 | `app/media_samples.py` | Geradores de PNG/JPEG/WEBP/GIF mínimos para testes e evals (sem Pillow). |
 | `agents/assistente_pemill.py` | Agente de conversa geral multimodal. Modelo de referência para novos agentes. |
 | `app/jira_tools.py`, `app/hr_resume_tools.py`, `app/resume_text.py` | Ferramentas dos agentes Jira e RH. |
@@ -152,7 +153,8 @@ A skill `/create-agent` guia esses passos; `/extend-agent` e `/improve-agent` it
 
 Tabela completa em `README.md`; defaults em `example.env`. Resumo das que afetam o Assistente Pemill:
 `CHAT_MODEL_PROVIDER`, `CHAT_MODEL_ID`, `ASSISTENTE_PEMILL_MEMORY`, `ASSISTENTE_PEMILL_HISTORY_RUNS`,
-`ASSISTENTE_PEMILL_MAX_TOKENS`, `IMAGE_PROVIDER`, `IMAGE_MODEL`, `IMAGE_SIZE`, `IMAGE_QUALITY`, `IMAGE_API_KEY`,
+`ASSISTENTE_PEMILL_MAX_TOKENS`, `WEB_SEARCH`, `WEB_SEARCH_BACKEND`, `WEB_SEARCH_REGION`, `IMAGE_PROVIDER`, `IMAGE_MODEL`,
+`IMAGE_SIZE`, `IMAGE_QUALITY`, `IMAGE_API_KEY`,
 `IMAGE_INPUT_MAX_MB`, `IMAGE_INPUT_FORMATS`, `MEDIA_STORAGE`, `MEDIA_STORAGE_DIR`, `MEDIA_S3_*`.
 
 ## Interfaces
