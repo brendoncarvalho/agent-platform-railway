@@ -20,7 +20,7 @@ ok = True
 
 # The leader is an OpenRouter model; agno pins its base URL, so point it at the stub here.
 team.model.base_url = f"{STUB}/v1"  # type: ignore[union-attr]
-for member in team.members:
+for member in team.members if isinstance(team.members, list) else []:
     if getattr(getattr(member, "model", None), "provider", "") == "OpenRouter":
         member.model.base_url = f"{STUB}/v1"  # type: ignore[union-attr]
 
