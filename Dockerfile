@@ -18,6 +18,14 @@ WORKDIR /app
 ENV PYTHONPATH=/app
 COPY requirements.txt ./
 RUN uv pip sync requirements.txt --system
+
+# ---------------------------------------------------------------------------
+# Headless Chromium for the browser tools (app/web_browser.py)
+# Only the headless shell and its system libraries, not the full browsers.
+# ---------------------------------------------------------------------------
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN playwright install --with-deps --only-shell chromium \
+    && rm -rf /var/lib/apt/lists/*
 COPY . .
 
 # ---------------------------------------------------------------------------

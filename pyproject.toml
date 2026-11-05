@@ -13,11 +13,13 @@ dependencies = [
   "ddgs",
   "jira==3.10.5",
   "openai",
+  "playwright",
   "pypdf",
   "python-docx",
   "python-dotenv",
   "pyyaml",
   "reportlab",
+  "trafilatura",
 ]
 
 [project.optional-dependencies]

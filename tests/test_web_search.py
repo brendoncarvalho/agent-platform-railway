@@ -139,3 +139,20 @@ def test_team_routes_web_research_to_the_assistant():
 
     text = " ".join(INSTRUCTIONS).lower()
     assert "pesquisa na web" in text and "links das fontes" in text
+
+
+def test_assistant_registry_and_team_have_the_page_tools():
+    from agents.assistente_pemill import assistente_pemill
+    from agents.ti_team import INSTRUCTIONS
+    from app.registry import registry
+    from app.web_browser import BrowserTools
+    from app.web_reader import WebReaderTools
+
+    tools = assistente_pemill.tools if isinstance(assistente_pemill.tools, list) else []
+    names = {name for toolkit in tools for name in getattr(toolkit, "functions", {})}
+    assert {"read_web_page", "browser_open", "browser_click", "browser_screenshot"} <= names
+    assert "browser_open" in str(assistente_pemill.instructions)
+    assert "navegador" in (assistente_pemill.description or "")
+    for kind in (WebReaderTools, BrowserTools):
+        assert any(isinstance(tool, kind) for tool in registry.tools or [])
+    assert "navegador" in " ".join(INSTRUCTIONS).lower()

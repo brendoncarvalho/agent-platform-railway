@@ -50,6 +50,10 @@ Compartilhado:
 | `app/settings.py` | Env helpers, fábricas de modelo, configurações de imagem e storage. |
 | `app/image_input.py` / `app/image_generation.py` / `app/media_storage.py` | Pipeline de imagens do Assistente Pemill. |
 | `app/web_search.py` | Pesquisa na web e de notícias (`WebSearchTools` do agno sobre `ddgs`, sem chave): teto de resultados, segunda tentativa em `auto` e falha devolvida como texto. |
+| `app/url_guard.py` | Só deixa passar URLs http(s) públicas: recusa localhost, IPs privados, nomes de container e metadados de nuvem (SSRF). Usado pelo leitor e pelo navegador. |
+| `app/web_reader.py` | `read_web_page`: baixa uma URL (cada redirecionamento passa pelo `url_guard`) e extrai o texto com `trafilatura`. Sem JavaScript. |
+| `app/web_browser.py` | Ferramentas `browser_*` sobre Playwright/Chromium: um Chromium por processo, um contexto por sessão de chat, em thread própria; fecha sozinho quando ocioso. Sem senhas nem downloads. |
+| `app/guarded_proxy.py` | Proxy local pelo qual todo o tráfego do Chromium sai; só conecta em endereços aprovados pelo `url_guard` (cobre redirecionamentos, imagens, XHR e WebSocket). |
 | `app/media_samples.py` | Geradores de PNG/JPEG/WEBP/GIF mínimos para testes e evals (sem Pillow). |
 | `agents/assistente_pemill.py` | Agente de conversa geral multimodal. Modelo de referência para novos agentes. |
 | `app/jira_tools.py`, `app/hr_resume_tools.py`, `app/resume_text.py` | Ferramentas dos agentes Jira e RH. |
@@ -153,7 +157,8 @@ A skill `/create-agent` guia esses passos; `/extend-agent` e `/improve-agent` it
 
 Tabela completa em `README.md`; defaults em `example.env`. Resumo das que afetam o Assistente Pemill:
 `CHAT_MODEL_PROVIDER`, `CHAT_MODEL_ID`, `ASSISTENTE_PEMILL_MEMORY`, `ASSISTENTE_PEMILL_HISTORY_RUNS`,
-`ASSISTENTE_PEMILL_MAX_TOKENS`, `WEB_SEARCH`, `WEB_SEARCH_BACKEND`, `WEB_SEARCH_REGION`, `IMAGE_PROVIDER`, `IMAGE_MODEL`,
+`ASSISTENTE_PEMILL_MAX_TOKENS`, `WEB_SEARCH`, `WEB_SEARCH_BACKEND`, `WEB_SEARCH_REGION`, `WEB_READER`, `BROWSER`,
+`BROWSER_MAX_SESSIONS`, `BROWSER_IDLE_SECONDS`, `BROWSER_MAX_STEPS`, `IMAGE_PROVIDER`, `IMAGE_MODEL`,
 `IMAGE_SIZE`, `IMAGE_QUALITY`, `IMAGE_API_KEY`,
 `IMAGE_INPUT_MAX_MB`, `IMAGE_INPUT_FORMATS`, `MEDIA_STORAGE`, `MEDIA_STORAGE_DIR`, `MEDIA_S3_*`.
 
