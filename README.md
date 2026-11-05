@@ -9,7 +9,7 @@ sessões, memória de usuário e conhecimento.
 
 | Agente | id | O que faz |
 |---|---|---|
-| **Assistente Pemill** | `assistente-pemill` | Conversa geral em pt-BR, analisa imagens enviadas (PNG/JPEG/WEBP), gera/edita imagens sob demanda e pesquisa na web. Histórico por sessão e memória de usuário no Postgres. |
+| **Assistente Pemill** | `assistente-pemill` | Conversa geral em pt-BR, analisa imagens enviadas (PNG/JPEG/WEBP), gera/edita imagens sob demanda, pesquisa na web, lê páginas e navega em sites públicos com um Chromium sem tela. Histórico por sessão e memória de usuário no Postgres. |
 | Revisor de textos | `crm-note-autofix` | Revisa registros comerciais de ligações e visitas, mantendo o sentido. |
 | Atendimento Jira | `jira-ticket-responder` | Lê e comenta chamados Jira com ferramentas guardadas (`JIRA_*`). |
 | Analista de Currículos | `hr-resume-analyst` | Apoio à triagem de currículos (PDF/DOCX/texto) para o RH. |
@@ -122,6 +122,9 @@ Valores padrão documentados em [`example.env`](example.env). Nenhuma chave fica
 | `WEB_SEARCH` | não | `True` | Liga a pesquisa na web e de notícias no Assistente Pemill (e, por ele, no Time TI) e a oferece aos agentes criados no portal. Sem chave de API. |
 | `WEB_SEARCH_BACKEND` | não | `google` | Buscador: `google`, `duckduckgo`, `bing`, `brave`, `yahoo` ou `auto`. Os resultados são raspados (biblioteca `ddgs`); se o buscador falhar, a busca tenta uma vez em `auto`. |
 | `WEB_SEARCH_REGION` / `WEB_SEARCH_MAX_RESULTS` / `WEB_SEARCH_TIMEOUT` | não | `br-pt` / `5` / `15` | Região-idioma dos resultados, teto de resultados por busca e tempo de espera em segundos. |
+| `WEB_READER` | não | `True` | Ferramenta `read_web_page`: baixa uma URL pública e devolve o texto da página (sem JavaScript). `WEB_READER_MAX_CHARS` (`20000`) e `WEB_READER_TIMEOUT` (`15`) ajustam os limites. |
+| `BROWSER` | não | `True` | Ferramentas `browser_*`: Chromium sem tela (instalado pelo `Dockerfile`) que abre páginas, clica, digita, rola e tira prints. Não digita senhas nem baixa arquivos. `False` impede o Chromium de iniciar. |
+| `BROWSER_MAX_SESSIONS` / `BROWSER_IDLE_SECONDS` / `BROWSER_MAX_STEPS` / `BROWSER_TIMEOUT` | não | `2` / `300` / `20` / `20` | Conversas com navegador aberto ao mesmo tempo (cada uma usa cerca de 300–600 MB de RAM), tempo ocioso até fechar a sessão, ações de navegador por resposta e tempo de espera por página ou ação. |
 | `IMAGE_PROVIDER` | não | `openrouter` | `openrouter` (geração + edição, qualquer modelo de imagem do OpenRouter), `openai` (geração + edição; gpt-image exige organização verificada) ou `gemini` (só geração; requer `google-genai`). |
 | `IMAGE_MODEL` | não | `google/gemini-2.5-flash-image` / `gpt-image-1` / `imagen-4.0-generate-001` | Modelo de imagem do provedor. |
 | `IMAGE_SIZE` / `IMAGE_QUALITY` | não | `1024x1024` / `auto` | Parâmetros de geração. No OpenRouter `WxH` vira `aspect_ratio`; aceita também tiers (`1K`, `2K`) ou `16:9`. |

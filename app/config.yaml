@@ -2,9 +2,10 @@ manifest:
   # --- Agents ---
 
   assistente-pemill:
-    description: "Assistente virtual da Pemill: conversa geral em português, análise de imagens enviadas, geração/edição de imagens e pesquisa na web."
+    description: "Assistente virtual da Pemill: conversa geral em português, análise de imagens enviadas, geração/edição de imagens, pesquisa na web e navegação em sites."
     quick_prompts:
       - "Pesquise na web as novidades da última versão do Windows Server"
+      - "Abra o site pemill.com.br e me mostre um print da página inicial"
       - "Me ajude a redigir um e-mail para um cliente sobre atraso na entrega"
       - "O que esta imagem mostra? (anexe uma imagem)"
       - "Gere uma imagem de um banner comemorativo para a equipe"
