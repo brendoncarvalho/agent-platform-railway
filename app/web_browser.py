@@ -63,6 +63,13 @@ LIVE_KEYS = frozenset(
     | {"ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Shift+Tab", "Control+a"}
 )
 SNAPSHOT_TEXT_CHARS = 3000
+# Appended to the page snapshot when the page shows a password field or a CAPTCHA: the model
+# reliably hands over when the tool result says so, less reliably from the system prompt alone.
+USER_STEP_HINT = (
+    "ATENÇÃO: esta página pede {needs}, etapa que só o usuário pode fazer. Se a tarefa depender disso, "
+    'chame browser_ask_user agora e oriente o usuário a clicar em "Navegador ao vivo" no chat. '
+    "Não peça para ele digitar a senha no chat."
+)
 MAX_ELEMENTS = 80
 SETTLE_MS = 600
 REAPER_INTERVAL = 30.0
@@ -107,8 +114,12 @@ SNAPSHOT_JS = """
     elements.push({ ref, kind, label });
   }
   const text = (document.body ? document.body.innerText : '').replace(/\\n{3,}/g, '\\n\\n').trim();
+  const shown = (el) => { const r = el.getBoundingClientRect(); return r.width > 1 && r.height > 1; };
+  const hasPassword = [...document.querySelectorAll('input[type=password]')].some(shown);
+  const hasCaptcha = [...document.querySelectorAll('iframe[src], script[src]')].some((el) =>
+    /recaptcha|hcaptcha|challenges\\.cloudflare\\.com|turnstile/i.test(el.getAttribute('src') || ''));
   const maxScroll = Math.max(0, document.documentElement.scrollHeight - vh);
-  return { title: document.title, url: location.href, text, elements,
+  return { title: document.title, url: location.href, text, elements, hasPassword, hasCaptcha,
     scrollY: Math.round(window.scrollY), maxScroll: Math.round(maxScroll) };
 }
 """
@@ -457,6 +468,14 @@ def _format_snapshot(data: dict[str, Any]) -> str:
             )
     else:
         lines.append("A página não tem texto visível.")
+    needs = [
+        label
+        for flag, label in (("hasPassword", "senha"), ("hasCaptcha", "verificação anti-robô (CAPTCHA)"))
+        if data.get(flag)
+    ]
+    if needs:
+        lines.append("")
+        lines.append(USER_STEP_HINT.format(needs=" e ".join(needs)))
     return "\n".join(lines)
 
 
