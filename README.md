@@ -109,6 +109,7 @@ Valores padrão documentados em [`example.env`](example.env). Nenhuma chave fica
 | `OPENROUTER_API_KEY` | sim | — | Provedor padrão de chat de todos os agentes e de geração de imagens. |
 | `OPENAI_API_KEY` | sim | — | Embeddings (bases de conhecimento) e imagens quando `IMAGE_PROVIDER=openai`. |
 | `OPENROUTER_MODEL` | não | `~openai/gpt-mini-latest` | Modelo OpenRouter padrão (`app.settings.default_model()`). |
+| `OPENROUTER_MAX_TOKENS` | não | `8192` | Teto de tokens de saída dos modelos OpenRouter sem limite próprio, incluindo agentes criados pelo portal/Studio. O padrão do Agno (1024) corta respostas longas no meio. |
 | `CHAT_MODEL_PROVIDER` | não | `openrouter` | Provedor de chat do Assistente Pemill: `openrouter`, `openai`, `google`, `anthropic`. Precisa aceitar imagens. |
 | `CHAT_MODEL_ID` | não | por provedor | Modelo de chat do Assistente Pemill (ver `example.env`). |
 | `ASSISTENTE_PEMILL_MEMORY` | não | `True` | Memória de usuário entre sessões (LearningMachine). |
