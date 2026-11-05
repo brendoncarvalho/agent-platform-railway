@@ -104,7 +104,7 @@ def ctx(session: str, run: str = "run-1") -> RunContext:
 
 
 def test_toolkit_registers_sync_and_async_tools(tools):
-    names = {f"browser_{n}" for n in ("open", "click", "type", "scroll", "back", "read", "screenshot")}
+    names = {f"browser_{n}" for n in ("open", "click", "type", "scroll", "back", "read", "screenshot", "ask_user")}
     assert set(tools.functions) == names
     assert set(tools.async_functions) == names
     assert tools.async_functions["browser_open"].description == tools.functions["browser_open"].description
@@ -178,3 +178,91 @@ def test_switch_off(monkeypatch):
     assert isinstance(build_browser_tools(), BrowserTools)
     monkeypatch.setenv("BROWSER", "false")
     assert build_browser_tools() is None
+
+
+# ---------------------------------------------------------------------------
+# Live view: the session owner watches and operates the agent's browser
+# ---------------------------------------------------------------------------
+def user_ctx(session: str, user: str, run: str = "run-1") -> RunContext:
+    return RunContext(run_id=run, session_id=session, user_id=user)
+
+
+@pytest.fixture
+def live(manager):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.browser_live import browser_live_router
+
+    app = FastAPI()
+    app.include_router(browser_live_router(manager))
+    return TestClient(app)
+
+
+def test_live_view_is_only_for_the_session_owner(tools, site, live):
+    tools.browser_open(site + "/", run_context=user_ctx("live-1", "ana@pemill.com.br"))
+
+    status = live.get("/browser/sessions/live-1", params={"user_id": "ana@pemill.com.br"}).json()
+    assert status["open"] is True and status["title"] == "Loja Teste"
+    assert (status["width"], status["height"]) == (1280, 800)
+
+    frame = live.get("/browser/sessions/live-1/frame", params={"user_id": "ana@pemill.com.br"})
+    assert frame.status_code == 200 and frame.headers["content-type"] == "image/jpeg"
+    assert frame.content[:3] == b"\xff\xd8\xff" and frame.headers["cache-control"] == "no-store"
+
+    # Another user, an unknown session and a missing user all look like "nothing open".
+    assert live.get("/browser/sessions/live-1", params={"user_id": "outro@pemill.com.br"}).json() == {"open": False}
+    assert live.get("/browser/sessions/live-1/frame", params={"user_id": "outro@pemill.com.br"}).status_code == 404
+    assert live.get("/browser/sessions/nao-existe/frame", params={"user_id": "ana@pemill.com.br"}).status_code == 404
+    assert live.get("/browser/sessions/live-1/frame").status_code == 422
+    blocked = live.post(
+        "/browser/sessions/live-1/input", params={"user_id": "outro@pemill.com.br"}, json={"type": "reload"}
+    )
+    assert blocked.status_code == 404
+
+
+def test_live_view_never_starts_a_browser(live, manager):
+    before = set(manager._sessions)
+    assert live.get("/browser/sessions/fresh", params={"user_id": "ana@pemill.com.br"}).json() == {"open": False}
+    assert set(manager._sessions) == before
+
+
+def test_user_logs_in_through_the_live_view(tools, site, live, manager):
+    ana = {"user_id": "ana@pemill.com.br"}
+    context = user_ctx("live-2", "ana@pemill.com.br")
+    page = tools.browser_open(site + "/", run_context=context)
+    secret_ref = next(line for line in page.splitlines() if "senha" in line).split("]")[0].lstrip("[")
+
+    handed_over = tools.browser_ask_user("O site pede a senha", run_context=context)
+    assert "Navegador ao vivo" in handed_over
+    assert live.get("/browser/sessions/live-2", params=ana).json()["waiting_for_user"] == "O site pede a senha"
+
+    # The user clicks the password field in the picture and types; the agent never sees the text.
+    box = manager.submit(
+        manager._sessions["live-2"].page.locator(f'[data-pemill-ref="{secret_ref}"]').bounding_box()
+    ).result(15)
+    click = {"type": "click", "x": box["x"] + box["width"] / 2, "y": box["y"] + box["height"] / 2}
+    assert live.post("/browser/sessions/live-2/input", params=ana, json=click).json()["ok"] is True
+    assert live.post("/browser/sessions/live-2/input", params=ana, json={"type": "type", "text": "s3gredo"}).json()[
+        "ok"
+    ]
+    assert live.post("/browser/sessions/live-2/input", params=ana, json={"type": "key", "key": "Tab"}).json()["ok"]
+
+    typed = manager.submit(manager._sessions["live-2"].page.locator("input[type=password]").input_value()).result(15)
+    assert typed == "s3gredo"
+    assert "s3gredo" not in tools.browser_read(run_context=context)
+    assert "s3gredo" not in tools.browser_scroll("top", run_context=context)
+
+    assert live.post("/browser/sessions/live-2/input", params=ana, json={"type": "done"}).json()["ok"] is True
+    assert live.get("/browser/sessions/live-2", params=ana).json()["waiting_for_user"] is None
+
+
+def test_live_input_is_validated(tools, site, live):
+    ana = {"user_id": "ana@pemill.com.br"}
+    tools.browser_open(site + "/", run_context=user_ctx("live-3", "ana@pemill.com.br"))
+    url = "/browser/sessions/live-3/input"
+    assert live.post(url, params=ana, json={"type": "eval", "text": "alert(1)"}).status_code == 422
+    assert live.post(url, params=ana, json={"type": "type", "text": "x" * 501}).status_code == 422
+    assert live.post(url, params=ana, json={"type": "key", "key": "F12"}).json() == {"ok": False, "error": "key"}
+    assert live.post(url, params=ana, json={"type": "scroll", "dy": 99999}).json()["ok"] is True
+    assert live.post(url, params=ana, json={"type": "click", "x": -50, "y": 99999}).json()["ok"] is True

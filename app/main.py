@@ -18,6 +18,7 @@ from agents.jira_ticket_responder import jira_ticket_responder
 from agents.ti_team import ti_team
 from app.media_storage import get_media_storage
 from app.registry import registry
+from app.web_browser import browser_settings
 from db import get_postgres_db
 
 # ---------------------------------------------------------------------------
@@ -59,6 +60,12 @@ if getenv("ROCKETCHAT_WEBHOOK_TOKEN"):
     from app.rocketchat import rocketchat_router
 
     base_app.include_router(rocketchat_router())
+
+# Live view of the agent's browser (watch, click, type). Behind the AgentOS auth layer.
+if browser_settings().enabled:
+    from app.browser_live import browser_live_router
+
+    base_app.include_router(browser_live_router())
 
 
 # ---------------------------------------------------------------------------
