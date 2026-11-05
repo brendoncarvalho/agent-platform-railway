@@ -84,6 +84,12 @@ def _build_memory() -> LearningMachine | None:
 assistente_pemill = Agent(
     id="assistente-pemill",
     name="Assistente Pemill",
+    # Read by team leaders (e.g. Time TI) to decide what to delegate here.
+    role="Assistente geral da Pemill: conversa, explicacoes, redacao, troubleshooting e imagens.",
+    description=(
+        "Responde duvidas gerais e tecnicas, redige e revisa textos, e e o unico membro com ferramentas "
+        "de imagem: gera imagens novas, edita imagens ja geradas na conversa e analisa imagens enviadas."
+    ),
     model=chat_model(max_tokens=MAX_OUTPUT_TOKENS),
     db=get_postgres_db(),
     media_storage=get_media_storage(),

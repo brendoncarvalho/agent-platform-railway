@@ -100,6 +100,9 @@ python tests/e2e_stub/openai_stub.py 8099 &
 RUNTIME_ENV=dev OPENAI_API_KEY=sk-stub OPENAI_BASE_URL=http://127.0.0.1:8099/v1 OPENROUTER_API_KEY=sk-stub OPENROUTER_BASE_URL=http://127.0.0.1:8099/v1 CHAT_MODEL_PROVIDER=openai ASSISTENTE_PEMILL_MEMORY=false PYTHONPATH=. python tests/e2e_stub/e2e_check.py
 ```
 
+O mesmo servidor cobre o Time TI (delegacao ao Assistente Pemill, geracao e edicao de imagem pelo time):
+troque o script por `tests/e2e_stub/e2e_team_check.py` e acrescente `TI_TEAM_MEMORY=false`.
+
 ## Variáveis de ambiente
 
 Valores padrão documentados em [`example.env`](example.env). Nenhuma chave fica no código.
@@ -113,6 +116,7 @@ Valores padrão documentados em [`example.env`](example.env). Nenhuma chave fica
 | `CHAT_MODEL_PROVIDER` | não | `openrouter` | Provedor de chat do Assistente Pemill: `openrouter`, `openai`, `google`, `anthropic`. Precisa aceitar imagens. |
 | `CHAT_MODEL_ID` | não | por provedor | Modelo de chat do Assistente Pemill (ver `example.env`). |
 | `ASSISTENTE_PEMILL_MEMORY` | não | `True` | Memória de usuário entre sessões (LearningMachine). |
+| `TI_TEAM_MEMORY` | não | `True` | Memória de usuário entre sessões no Time TI (mesmo armazenamento do assistente). |
 | `ASSISTENTE_PEMILL_HISTORY_RUNS` | não | `10` | Interações anteriores incluídas no contexto. |
 | `ASSISTENTE_PEMILL_MAX_TOKENS` | não | `4096` | Teto de tokens de saída. |
 | `IMAGE_PROVIDER` | não | `openrouter` | `openrouter` (geração + edição, qualquer modelo de imagem do OpenRouter), `openai` (geração + edição; gpt-image exige organização verificada) ou `gemini` (só geração; requer `google-genai`). |

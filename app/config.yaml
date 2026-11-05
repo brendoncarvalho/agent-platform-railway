@@ -32,8 +32,9 @@ manifest:
   # --- Teams ---
 
   ti-team:
-    description: "Time de atendimento de TI em portugues. Coordena triagem, Jira, duvidas tecnicas e arquivos."
+    description: "Time de atendimento de TI em portugues. Coordena triagem, Jira, duvidas tecnicas, imagens e arquivos."
     quick_prompts:
       - "Triar este chamado de TI"
+      - "Gere uma imagem para o comunicado de manutencao programada"
       - "Verifique o status do chamado JIRA-123 e sugira a resposta"
       - "Gere um PDF com o resumo deste atendimento"
