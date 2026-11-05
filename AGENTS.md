@@ -53,6 +53,7 @@ Compartilhado:
 | `app/url_guard.py` | Só deixa passar URLs http(s) públicas: recusa localhost, IPs privados, nomes de container e metadados de nuvem (SSRF). Usado pelo leitor e pelo navegador. |
 | `app/web_reader.py` | `read_web_page`: baixa uma URL (cada redirecionamento passa pelo `url_guard`) e extrai o texto com `trafilatura`. Sem JavaScript. |
 | `app/web_browser.py` | Ferramentas `browser_*` sobre Playwright/Chromium: um Chromium por processo, um contexto por sessão de chat, em thread própria; fecha sozinho quando ocioso. Sem senhas nem downloads. |
+| `app/browser_live.py` | Rotas `/browser/sessions/{session_id}` (estado, `/frame` em JPEG, `/input`) para o usuário ver e operar o navegador do agente no portal. Só o dono da sessão de chat (`user_id`) é atendido. É assim que login, código de verificação e CAPTCHA são feitos pela pessoa. |
 | `app/guarded_proxy.py` | Proxy local pelo qual todo o tráfego do Chromium sai; só conecta em endereços aprovados pelo `url_guard` (cobre redirecionamentos, imagens, XHR e WebSocket). |
 | `app/media_samples.py` | Geradores de PNG/JPEG/WEBP/GIF mínimos para testes e evals (sem Pillow). |
 | `agents/assistente_pemill.py` | Agente de conversa geral multimodal. Modelo de referência para novos agentes. |

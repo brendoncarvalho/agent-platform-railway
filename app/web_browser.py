@@ -15,8 +15,13 @@ How it works:
 - After every action the tool returns a snapshot: title, URL, numbered interactive elements
   and the visible text. The model refers to elements by number.
 
-Deliberate limits of this version: no typing into password fields, no downloads, at most
-`BROWSER_MAX_STEPS` actions per answer and `BROWSER_MAX_SESSIONS` open sessions.
+Deliberate limits of this version: the agent never types into password fields, no downloads,
+at most `BROWSER_MAX_STEPS` actions per answer and `BROWSER_MAX_SESSIONS` open sessions.
+
+Live view: the user who owns the chat session can watch this same browser and operate it
+(mouse and keyboard) through `app/browser_live.py` — that is how logins, verification codes
+and CAPTCHAs are handled: by the person, not by the agent. What the user types goes straight
+to the page; it is never logged, stored or shown to the model.
 
 Configuration (see `example.env`):
 - BROWSER — turns the tools on/off (default on; needs Chromium, installed by the Dockerfile).
@@ -49,6 +54,14 @@ from app.settings import env_flag, env_int
 from app.url_guard import BlockedUrlError, check_public_url, public_addresses
 from app.web_reader import clip
 
+TOOL_NAMES = ("open", "click", "type", "scroll", "back", "read", "screenshot", "ask_user")
+LIVE_JPEG_QUALITY = 60
+LIVE_MAX_TEXT = 500
+# Keys the user may press in the live view (Playwright key names).
+LIVE_KEYS = frozenset(
+    {"Enter", "Tab", "Backspace", "Delete", "Escape", "Home", "End", "PageUp", "PageDown", "Space"}
+    | {"ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Shift+Tab", "Control+a"}
+)
 SNAPSHOT_TEXT_CHARS = 3000
 MAX_ELEMENTS = 80
 SETTLE_MS = 600
@@ -133,6 +146,8 @@ class _Session:
     last_used: float
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     steps: dict[str, int] = field(default_factory=dict)
+    owner: str | None = None  # user of the chat session; the live view is only served to them
+    waiting_for_user: str | None = None  # why the agent asked the user to take over, if it did
 
 
 class BrowserManager:
@@ -291,14 +306,101 @@ class BrowserManager:
         self._sessions[session_id] = session
         return session
 
+    # -- live view (the user watches and operates the agent's browser) -----------
+    def _live_session(self, session_id: str, user_id: str | None) -> _Session | None:
+        """The open session of this chat, only for its owner. Never starts a browser."""
+        session = self._sessions.get(session_id)
+        if session is None or session.page.is_closed():
+            return None
+        if not user_id or session.owner != user_id:
+            return None
+        return session
+
+    async def live_status(self, session_id: str, user_id: str | None) -> dict[str, Any]:
+        session = self._live_session(session_id, user_id)
+        if session is None:
+            return {"open": False}
+        size = session.page.viewport_size or {"width": 1280, "height": 800}
+        try:
+            title = await session.page.title()
+        except Exception:
+            title = ""
+        return {
+            "open": True,
+            "url": session.page.url,
+            "title": title,
+            "width": size["width"],
+            "height": size["height"],
+            "waiting_for_user": session.waiting_for_user,
+            "idle_seconds": self.settings.idle_seconds,
+        }
+
+    async def live_frame(self, session_id: str, user_id: str | None) -> bytes | None:
+        """JPEG of the viewport. Watching does not keep the session alive; only input does."""
+        session = self._live_session(session_id, user_id)
+        if session is None:
+            return None
+        try:
+            return await session.page.screenshot(type="jpeg", quality=LIVE_JPEG_QUALITY)
+        except Exception:
+            return None
+
+    async def live_input(self, session_id: str, user_id: str | None, event: dict[str, Any]) -> dict[str, Any]:
+        """Apply one mouse/keyboard event from the user. The event content is never logged."""
+        session = self._live_session(session_id, user_id)
+        if session is None:
+            return {"ok": False, "error": "closed"}
+        kind = str(event.get("type") or "")
+        try:
+            async with asyncio.timeout(self.settings.timeout):
+                async with session.lock:  # never interleave with an action of the agent
+                    page = session.page
+                    session.last_used = time.monotonic()
+                    if kind == "click":
+                        size = page.viewport_size or {"width": 1280, "height": 800}
+                        x = min(max(float(event.get("x", 0)), 0), size["width"] - 1)
+                        y = min(max(float(event.get("y", 0)), 0), size["height"] - 1)
+                        await page.mouse.click(x, y)
+                    elif kind == "type":
+                        await page.keyboard.type(str(event.get("text") or "")[:LIVE_MAX_TEXT])
+                    elif kind == "key":
+                        key = str(event.get("key") or "")
+                        if key not in LIVE_KEYS:
+                            return {"ok": False, "error": "key"}
+                        await page.keyboard.press(key)
+                    elif kind == "scroll":
+                        delta = min(max(float(event.get("dy", 0)), -2000), 2000)
+                        await page.mouse.wheel(0, delta)
+                    elif kind == "back":
+                        await page.go_back(wait_until="domcontentloaded")
+                    elif kind == "reload":
+                        await page.reload(wait_until="domcontentloaded")
+                    elif kind == "done":
+                        session.waiting_for_user = None
+                    else:
+                        return {"ok": False, "error": "type"}
+                    session.last_used = time.monotonic()
+        except Exception as exc:  # timeouts and Playwright errors; the event itself stays out of the log
+            log_warning(f"browser live input '{kind}' failed: {type(exc).__name__}")
+            return {"ok": False, "error": "failed"}
+        return {"ok": True, "url": session.page.url}
+
     async def run(
-        self, session_id: str, run_id: str, action: Callable[[_Session], Awaitable[Any]], *, needs_page: bool = True
+        self,
+        session_id: str,
+        run_id: str,
+        action: Callable[[_Session], Awaitable[Any]],
+        *,
+        needs_page: bool = True,
+        user_id: str | None = None,
     ) -> Any:
         """Run one browser action for a chat session, turning failures into a message for the model."""
         try:
             session = await self._session(session_id)
         except BrowserToolError as exc:
             return str(exc)
+        if user_id and session.owner is None:
+            session.owner = user_id
         async with session.lock:
             session.last_used = time.monotonic()
             steps = session.steps.get(run_id, 0) + 1
@@ -363,7 +465,7 @@ class BrowserTools(Toolkit):
 
     def __init__(self, manager: BrowserManager | None = None, **kwargs):
         self._manager = manager
-        names = ("open", "click", "type", "scroll", "back", "read", "screenshot")
+        names = TOOL_NAMES
         super().__init__(
             name="web_browser",
             tools=[getattr(self, f"browser_{name}") for name in names],
@@ -383,14 +485,18 @@ class BrowserTools(Toolkit):
         session_id = getattr(run_context, "session_id", None) or "default"
         return session_id, getattr(run_context, "run_id", None) or "default"
 
+    def _run(self, run_context: RunContext | None, action: Callable[[_Session], Awaitable[Any]], **kwargs) -> Any:
+        kwargs.setdefault("user_id", getattr(run_context, "user_id", None))
+        return self.manager.run(*self._ids(run_context), action, **kwargs)
+
     def _call(self, run_context: RunContext | None, action: Callable[[_Session], Awaitable[Any]], **kwargs) -> Any:
-        future = self.manager.submit(self.manager.run(*self._ids(run_context), action, **kwargs))
+        future = self.manager.submit(self._run(run_context, action, **kwargs))
         return future.result(timeout=self.manager.call_timeout)
 
     async def _acall(
         self, run_context: RunContext | None, action: Callable[[_Session], Awaitable[Any]], **kwargs
     ) -> Any:
-        future = self.manager.submit(self.manager.run(*self._ids(run_context), action, **kwargs))
+        future = self.manager.submit(self._run(run_context, action, **kwargs))
         return await asyncio.wait_for(asyncio.wrap_future(future), self.manager.call_timeout)
 
     async def _snapshot(self, session: _Session, note: str = "") -> str:
@@ -513,6 +619,19 @@ class BrowserTools(Toolkit):
 
         return action
 
+    def _ask_user(self, reason: str) -> Callable[[_Session], Awaitable[str]]:
+        async def action(session: _Session) -> str:
+            session.waiting_for_user = (reason or "").strip()[:300] or "O site pede uma ação do usuário."
+            return (
+                "Pedido registrado. Agora encerre esta resposta: diga ao usuário, em uma ou duas frases, o que o site "
+                'está pedindo, peça que ele clique em "Navegador ao vivo" no chat, faça essa etapa ele mesmo e '
+                "avise quando terminar. Não tente mais nenhuma ação no navegador nesta resposta. Quando o usuário "
+                "avisar, continue com browser_read. A sessão fecha após "
+                f"{self.manager.settings.idle_seconds // 60} minutos sem uso."
+            )
+
+        return action
+
     # -- tools (sync variants; the async ones below share these docstrings) --------
     def browser_open(self, url: str, run_context: RunContext | None = None) -> str:
         """Abre uma página no navegador (Chromium) e devolve título, URL, elementos interativos e texto visível.
@@ -595,7 +714,25 @@ class BrowserTools(Toolkit):
         result = self._call(run_context, self._screenshot())
         return result if isinstance(result, ToolResult) else ToolResult(content=str(result))
 
+    def browser_ask_user(self, reason: str, run_context: RunContext | None = None) -> str:
+        """Passa o navegador para o usuário quando o site exige algo que só ele pode fazer.
+
+        Use quando a página pedir login, senha, código de verificação (SMS, e-mail, autenticador) ou CAPTCHA.
+        O usuário vê e opera este mesmo navegador pela tela ao vivo do chat; a senha que ele digitar não
+        passa por você. Depois de chamar esta ferramenta, encerre a resposta e aguarde o usuário.
+
+        Args:
+            reason (str): O que o site está pedindo, em uma frase (ex.: "O portal pede usuário e senha").
+
+        Returns:
+            Instruções de como orientar o usuário.
+        """
+        return self._call(run_context, self._ask_user(reason))
+
     # -- tools (async variants, used by arun / AgentOS) ----------------------------
+    async def abrowser_ask_user(self, reason: str, run_context: RunContext | None = None) -> str:
+        return await self._acall(run_context, self._ask_user(reason))
+
     async def abrowser_open(self, url: str, run_context: RunContext | None = None) -> str:
         return await self._acall(run_context, self._open(url), needs_page=False)
 
@@ -621,7 +758,7 @@ class BrowserTools(Toolkit):
         return result if isinstance(result, ToolResult) else ToolResult(content=str(result))
 
 
-for _name in ("open", "click", "type", "scroll", "back", "read", "screenshot"):
+for _name in TOOL_NAMES:
     getattr(BrowserTools, f"abrowser_{_name}").__doc__ = getattr(BrowserTools, f"browser_{_name}").__doc__
 
 

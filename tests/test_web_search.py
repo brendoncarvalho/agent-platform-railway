@@ -156,3 +156,14 @@ def test_assistant_registry_and_team_have_the_page_tools():
     for kind in (WebReaderTools, BrowserTools):
         assert any(isinstance(tool, kind) for tool in registry.tools or [])
     assert "navegador" in " ".join(INSTRUCTIONS).lower()
+    assert "browser_ask_user" in names and "browser_ask_user" in str(assistente_pemill.instructions)
+
+
+def test_live_view_routes_are_mounted_in_agentos():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    client = TestClient(app)
+    assert client.get("/browser/sessions/none", params={"user_id": "ana@pemill.com.br"}).json() == {"open": False}
+    assert client.get("/browser/sessions/none/frame", params={"user_id": "ana@pemill.com.br"}).status_code == 404
