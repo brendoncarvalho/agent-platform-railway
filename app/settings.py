@@ -7,9 +7,12 @@ small env helpers. Every value comes from environment variables with the default
 in `example.env` — API keys never live in code.
 """
 
+import inspect
 from dataclasses import dataclass
+from functools import wraps
 from os import getenv
 from pathlib import Path
+from typing import Any
 
 from agno.models.base import Model
 from agno.models.openrouter import OpenRouter
@@ -17,6 +20,10 @@ from agno.models.openrouter import OpenRouter
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 DEFAULT_OPENROUTER_MODEL = "~openai/gpt-mini-latest"
+
+# Output cap for OpenRouter models that do not set their own. agno's default is 1024, which
+# truncates long answers (e.g. a JSON transcription) in the middle.
+DEFAULT_OPENROUTER_MAX_TOKENS = 8192
 
 # Extra OpenRouter models offered in AgentOS Studio, next to the default one.
 STUDIO_MODEL_IDS = (
@@ -74,11 +81,46 @@ def env_list(name: str, default: str) -> tuple[str, ...]:
 # ---------------------------------------------------------------------------
 # Chat models
 # ---------------------------------------------------------------------------
+def openrouter_max_tokens() -> int:
+    """Platform output cap for OpenRouter models (`OPENROUTER_MAX_TOKENS`)."""
+    return max(1, env_int("OPENROUTER_MAX_TOKENS", DEFAULT_OPENROUTER_MAX_TOKENS))
+
+
+def apply_openrouter_output_cap() -> None:
+    """Make every `OpenRouter` model built without `max_tokens` use the platform cap.
+
+    Agents created from the portal/Studio are stored as components whose model is just a
+    `provider:id` string; agno rebuilds it as `OpenRouter(id=...)` with its own default
+    (1024 output tokens) and the component config has no field to change that. Wrapping the
+    constructor is the one place that covers those agents as well as the ones in code.
+    An explicit `max_tokens` (argument or later assignment) always wins. Idempotent.
+    """
+    original = OpenRouter.__init__
+    if getattr(original, "_pemill_output_cap", False):
+        return
+    # Position of `max_tokens` among the constructor arguments (after `self`), to leave
+    # alone the unlikely call that passes it positionally.
+    position = list(inspect.signature(original).parameters).index("max_tokens") - 1
+
+    @wraps(original)
+    def __init__(self: OpenRouter, *args: Any, **kwargs: Any) -> None:
+        if "max_tokens" not in kwargs and len(args) <= position:
+            kwargs["max_tokens"] = openrouter_max_tokens()
+        original(self, *args, **kwargs)
+
+    __init__._pemill_output_cap = True  # type: ignore[attr-defined]
+    OpenRouter.__init__ = __init__  # type: ignore[method-assign]
+
+
+# Applied on import: every module that builds a model imports this one first.
+apply_openrouter_output_cap()
+
+
 def default_model(max_tokens: int | None = None, id: str | None = None) -> OpenRouter:
     """Fresh OpenRouter model instance per agent — avoids shared-state footguns.
 
-    `max_tokens` raises the output cap for agents with long answers; left unset,
-    agno's OpenRouter default (1024) applies. `id` picks another OpenRouter model;
+    `max_tokens` sets the output cap for this agent; left unset, the platform cap
+    (`OPENROUTER_MAX_TOKENS`, default 8192) applies. `id` picks another OpenRouter model;
     left unset, `OPENROUTER_MODEL` (or the platform default) applies.
     """
     model = OpenRouter(id=id or getenv("OPENROUTER_MODEL") or DEFAULT_OPENROUTER_MODEL)
