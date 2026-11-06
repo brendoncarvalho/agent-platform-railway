@@ -11,6 +11,7 @@ dependencies = [
   "agno[os,mcp,slack,pgvector,psycopg]==3.1.12",
   "agnoctl==0.2.0",
   "ddgs",
+  "google-genai",
   "jira==3.10.5",
   "openai",
   "playwright",
